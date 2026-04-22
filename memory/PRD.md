@@ -48,6 +48,11 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - edit pengguna lengkap (username, nama, email, role, password opsional)
   - hapus pengguna khusus admin dengan konfirmasi ketik `HAPUS`
   - hapus barang khusus admin dengan konfirmasi ketik `HAPUS`
+  - input jumlah pembayaran pada kasir dan edit transaksi
+  - status pembayaran otomatis: `hutang`, `lunas`, `kembalian`
+  - detail transaksi menyimpan `amount_paid`, `balance_due`, dan `change_due`
+  - menu transaksi menampilkan ringkasan per pelanggan
+  - saat ringkasan pelanggan dipilih, tampil seluruh rincian transaksi pelanggan termasuk item/jasa dan hutang aktif
 - Seed akun default otomatis saat database kosong:
   - admin / admin123
   - kasir / kasir123
@@ -69,6 +74,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - verifikasi link login → register pada viewport kecil
   - regression test backend dari testing agent: 13/13 lulus pada iterasi terbaru
   - verifikasi UI filter transaksi, mode edit transaksi, pilih barang inventori, dan hapus barang via preview
+  - regression test backend + frontend untuk pembayaran/hutang/ringkasan pelanggan: 18/18 pytest lulus dan UI transaksi pelanggan lulus
 
 ## Backlog Prioritas
 
@@ -81,6 +87,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Export bon PDF/native share yang lebih kaya
 - Ringkasan omzet per hari/minggu/bulan
 - Notifikasi stok minimum dan badge jumlah stok kritis
+- Ringkasan pelanggan dengan filter pelanggan/invoice yang lebih cepat
 
 ### P2
 - Multi-bengkel / multi-cabang
