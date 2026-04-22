@@ -266,12 +266,12 @@ export default function InventoryScreen() {
 
               <View style={styles.modalActions}>
                 <ActionButton label={editingItemId ? "Simpan Perubahan" : "Simpan Barang"} onPress={() => void saveItem()} testID="inventory-save-button" />
-                <ActionButton label="Tutup" onPress={closeModal} variant="secondary" />
+                <ActionButton label="Tutup" onPress={closeModal} variant="secondary" testID="inventory-close-button" />
               </View>
 
               {editingItemId && isAdmin ? (
                 <>
-                  <ActionButton label="Hapus Barang" onPress={() => setShowDeleteConfirm((current) => !current)} variant="danger" />
+                  <ActionButton label="Hapus Barang" onPress={() => setShowDeleteConfirm((current) => !current)} variant="danger" testID="inventory-open-delete-button" />
                   {showDeleteConfirm ? (
                     <DeleteConfirmationCard
                       title="Hapus barang"

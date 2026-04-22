@@ -691,7 +691,7 @@ async def list_items(
 @api_router.post("/items", response_model=InventoryItem)
 async def create_item(
     payload: InventoryItemCreate,
-    current_user: dict = Depends(get_current_user),
+    admin_user: dict = Depends(get_admin_user),
 ) -> InventoryItem:
     existing_item = await db.inventory.find_one({"item_code": payload.item_code.strip().upper()}, {"_id": 0})
     if existing_item:
@@ -723,7 +723,7 @@ async def create_item(
 async def update_item(
     item_id: str,
     payload: InventoryItemUpdate,
-    current_user: dict = Depends(get_current_user),
+    admin_user: dict = Depends(get_admin_user),
 ) -> InventoryItem:
     existing_item = await db.inventory.find_one({"id": item_id}, {"_id": 0})
     if not existing_item:
