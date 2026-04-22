@@ -39,6 +39,12 @@ const columnWidths = {
   action: 110,
 };
 
+const sortButtonMeta = {
+  code: { icon: "barcode-outline", label: "Kode" },
+  stock: { icon: "layers-outline", label: "Stok" },
+  price: { icon: "cash-outline", label: "Harga" },
+} as const;
+
 export default function InventoryScreen() {
   const { session } = useAuth();
   const { height } = useWindowDimensions();
@@ -198,6 +204,7 @@ export default function InventoryScreen() {
   };
 
   const tableWidth = Object.values(columnWidths).reduce((total, width) => total + width, 0);
+  const sortLabel = sortBy === "code" ? "Kode" : sortBy === "stock" ? "Stok" : "Harga";
 
   const toggleSort = (nextSortBy: "code" | "stock" | "price") => {
     setCurrentPage(1);
@@ -210,9 +217,9 @@ export default function InventoryScreen() {
   };
 
   return (
-    <ScreenShell title="" subtitle="" hideHeader>
-      <SurfaceCard>
-        <View style={styles.toolbarRow}>
+    <ScreenShell title="" subtitle="" hideHeader scrollable={false} contentStyle={styles.screenContent}>
+      <SurfaceCard style={styles.controlsCard}>
+        <View style={styles.searchRow}>
           <TextInput
             value={searchDraft}
             onChangeText={setSearchDraft}
@@ -231,82 +238,148 @@ export default function InventoryScreen() {
           >
             <Ionicons name="search" size={18} color={colors.text} />
           </Pressable>
+        </View>
+        <View style={styles.sortRow}>
           {isAdmin ? (
-            <Pressable onPress={openCreateModal} style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]} testID="inventory-add-button">
+            <Pressable
+              onPress={openCreateModal}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+              testID="inventory-add-button"
+            >
               <Ionicons name="add" size={18} color={colors.text} />
             </Pressable>
           ) : null}
-          <Pressable onPress={() => void loadItems()} style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]} testID="inventory-refresh-button">
+          {(["code", "stock", "price"] as const).map((key) => {
+            const isActive = sortBy === key;
+            const iconColor = isActive ? colors.surface : colors.text;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => toggleSort(key)}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  isActive && styles.activeIconButton,
+                  pressed && styles.iconPressed,
+                ]}
+                testID={`inventory-sort-${key}`}
+              >
+                <Ionicons name={sortButtonMeta[key].icon} size={18} color={iconColor} />
+              </Pressable>
+            );
+          })}
+          <Pressable
+            onPress={() => void loadItems()}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+            testID="inventory-refresh-button"
+          >
             <Ionicons name="refresh" size={18} color={colors.text} />
           </Pressable>
         </View>
-      </SurfaceCard>
-
-      <SurfaceCard>
-        <View style={styles.sortRow}>
-          <ActionButton label={`Kode ${sortBy === "code" ? (sortOrder === "asc" ? "↑" : "↓") : ""}`} compact onPress={() => toggleSort("code")} variant={sortBy === "code" ? "primary" : "secondary"} testID="inventory-sort-code" />
-          <ActionButton label={`Stok ${sortBy === "stock" ? (sortOrder === "asc" ? "↑" : "↓") : ""}`} compact onPress={() => toggleSort("stock")} variant={sortBy === "stock" ? "primary" : "secondary"} testID="inventory-sort-stock" />
-          <ActionButton label={`Harga ${sortBy === "price" ? (sortOrder === "asc" ? "↑" : "↓") : ""}`} compact onPress={() => toggleSort("price")} variant={sortBy === "price" ? "primary" : "secondary"} testID="inventory-sort-price" />
-        </View>
         <View style={styles.paginationInfoRow}>
-          <Text style={styles.helperText}>Menampilkan {sortedItems.length === 0 ? 0 : (currentPageSafe - 1) * rowsPerPage + 1}-{Math.min(currentPageSafe * rowsPerPage, sortedItems.length)} dari {sortedItems.length} barang</Text>
-          <Text style={styles.helperText}>Halaman {currentPageSafe}/{totalPages}</Text>
+          <Text style={styles.helperText} testID="inventory-sort-state">
+            Urut: {sortLabel} {sortOrder === "asc" ? "↑" : "↓"}
+          </Text>
+          <Text style={styles.helperText} testID="inventory-page-state">
+            Hal. {currentPageSafe}/{totalPages}
+          </Text>
         </View>
       </SurfaceCard>
 
-      <SurfaceCard>
+      <SurfaceCard style={styles.tableCard}>
         {sortedItems.length === 0 ? (
-          <Text style={styles.helperText}>Belum ada data barang tersimpan.</Text>
+          <View style={styles.emptyState} testID="inventory-empty-state">
+            <Text style={styles.helperText}>Belum ada data barang tersimpan.</Text>
+          </View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ width: tableWidth }}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.headerCell, { width: columnWidths.code }]}>Kode</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.name }]}>Nama</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.stock }]}>Stok</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.unit }]}>Satuan</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.cost }]}>Harga Modal</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.workshop }]}>Jual Bengkel</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.consumer }]}>Jual Konsumen</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.notes }]}>Keterangan</Text>
-                <Text style={[styles.headerCell, { width: columnWidths.action }]}>Aksi</Text>
-              </View>
+          <View style={styles.tableContent}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.tableHorizontalScroll}
+              contentContainerStyle={styles.tableHorizontalContent}
+              testID="inventory-table-horizontal-scroll"
+            >
+              <View style={[styles.tableContainer, { width: tableWidth }]}> 
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.headerCell, { width: columnWidths.code }]}>Kode</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.name }]}>Nama</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.stock }]}>Stok</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.unit }]}>Satuan</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.cost }]}>Harga Modal</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.workshop }]}>Jual Bengkel</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.consumer }]}>Jual Konsumen</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.notes }]}>Keterangan</Text>
+                  <Text style={[styles.headerCell, { width: columnWidths.action }]}>Aksi</Text>
+                </View>
 
-              <ScrollView style={styles.tableBody} nestedScrollEnabled>
-                {paginatedItems.map((item) => {
-                  const badgeTone = item.stock <= item.low_stock_threshold ? "danger" : item.stock <= item.low_stock_threshold * 2 ? "warning" : "success";
-                  const badgeLabel = item.stock <= item.low_stock_threshold ? "Kritis" : item.stock <= item.low_stock_threshold * 2 ? "Menipis" : "Aman";
-                  return (
-                    <View key={item.id} style={styles.tableRow}>
-                      <Text style={[styles.bodyCell, { width: columnWidths.code }]}>{item.item_code}</Text>
-                      <Text style={[styles.bodyCell, { width: columnWidths.name }]}>{item.name}</Text>
-                      <View style={[styles.stockCell, { width: columnWidths.stock }]}>
-                        <Text style={[styles.bodyCell, styles.stockValue, item.stock <= item.low_stock_threshold && styles.lowStockText]}>{item.stock}</Text>
-                        <View style={[styles.stockBadge, badgeTone === "danger" ? styles.badgeDanger : badgeTone === "warning" ? styles.badgeWarning : styles.badgeSuccess]}>
-                          <Text style={[styles.stockBadgeText, badgeTone === "warning" && styles.badgeWarningText]}>{badgeLabel}</Text>
+                <ScrollView
+                  style={styles.tableBody}
+                  contentContainerStyle={styles.tableBodyContent}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  testID="inventory-table-vertical-scroll"
+                >
+                  {paginatedItems.map((item) => {
+                    const badgeTone = item.stock <= item.low_stock_threshold ? "danger" : item.stock <= item.low_stock_threshold * 2 ? "warning" : "success";
+                    const badgeLabel = item.stock <= item.low_stock_threshold ? "Kritis" : item.stock <= item.low_stock_threshold * 2 ? "Menipis" : "Aman";
+                    return (
+                      <View key={item.id} style={styles.tableRow}>
+                        <Text style={[styles.bodyCell, { width: columnWidths.code }]}>{item.item_code}</Text>
+                        <Text style={[styles.bodyCell, { width: columnWidths.name }]}>{item.name}</Text>
+                        <View style={[styles.stockCell, { width: columnWidths.stock }]}> 
+                          <Text style={[styles.bodyCell, styles.stockValue, item.stock <= item.low_stock_threshold && styles.lowStockText]}>{item.stock}</Text>
+                          <View style={[styles.stockBadge, badgeTone === "danger" ? styles.badgeDanger : badgeTone === "warning" ? styles.badgeWarning : styles.badgeSuccess]}>
+                            <Text style={[styles.stockBadgeText, badgeTone === "warning" && styles.badgeWarningText]}>{badgeLabel}</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.bodyCell, { width: columnWidths.unit }]}>{item.unit}</Text>
+                        <Text style={[styles.bodyCell, { width: columnWidths.cost }]}>{formatCurrency(item.cost_price)}</Text>
+                        <Text style={[styles.bodyCell, { width: columnWidths.workshop }]}>{formatCurrency(item.workshop_price)}</Text>
+                        <Text style={[styles.bodyCell, { width: columnWidths.consumer }]}>{formatCurrency(item.consumer_price)}</Text>
+                        <Text style={[styles.bodyCell, { width: columnWidths.notes }]}>{item.notes || "-"}</Text>
+                        <View style={[styles.actionCell, { width: columnWidths.action }]}> 
+                          {isAdmin ? (
+                            <ActionButton
+                              label="Edit"
+                              compact
+                              onPress={() => openEditModal(item)}
+                              testID={`inventory-item-${item.id}`}
+                            />
+                          ) : (
+                            <Text style={styles.readOnlyText}>Lihat</Text>
+                          )}
                         </View>
                       </View>
-                      <Text style={[styles.bodyCell, { width: columnWidths.unit }]}>{item.unit}</Text>
-                      <Text style={[styles.bodyCell, { width: columnWidths.cost }]}>{formatCurrency(item.cost_price)}</Text>
-                      <Text style={[styles.bodyCell, { width: columnWidths.workshop }]}>{formatCurrency(item.workshop_price)}</Text>
-                      <Text style={[styles.bodyCell, { width: columnWidths.consumer }]}>{formatCurrency(item.consumer_price)}</Text>
-                      <Text style={[styles.bodyCell, { width: columnWidths.notes }]}>{item.notes || "-"}</Text>
-                      <View style={[styles.actionCell, { width: columnWidths.action }]}>
-                        {isAdmin ? <ActionButton label="Edit" compact onPress={() => openEditModal(item)} testID={`inventory-item-${item.id}`} /> : <Text style={styles.readOnlyText}>Lihat</Text>}
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </ScrollView>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </ScrollView>
+          </View>
         )}
-      </SurfaceCard>
-
-      <SurfaceCard>
-        <View style={styles.paginationControls}>
-          <ActionButton label="Sebelumnya" compact onPress={() => setCurrentPage((current) => Math.max(1, current - 1))} variant="secondary" disabled={currentPageSafe <= 1} testID="inventory-page-prev" />
-          <ActionButton label="Berikutnya" compact onPress={() => setCurrentPage((current) => Math.min(totalPages, current + 1))} variant="secondary" disabled={currentPageSafe >= totalPages} testID="inventory-page-next" />
+        <View style={styles.tableFooter}>
+          <Text style={styles.helperText} testID="inventory-results-state">
+            Menampilkan {sortedItems.length === 0 ? 0 : (currentPageSafe - 1) * rowsPerPage + 1}-
+            {Math.min(currentPageSafe * rowsPerPage, sortedItems.length)} dari {sortedItems.length} barang
+          </Text>
+          <View style={styles.paginationControls}>
+            <ActionButton
+              label="Sebelumnya"
+              compact
+              onPress={() => setCurrentPage((current) => Math.max(1, current - 1))}
+              variant="secondary"
+              disabled={currentPageSafe <= 1}
+              testID="inventory-page-prev"
+            />
+            <ActionButton
+              label="Berikutnya"
+              compact
+              onPress={() => setCurrentPage((current) => Math.min(totalPages, current + 1))}
+              variant="secondary"
+              disabled={currentPageSafe >= totalPages}
+              testID="inventory-page-next"
+            />
+          </View>
         </View>
       </SurfaceCard>
 
@@ -363,16 +436,29 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  toolbarRow: {
+  screenContent: {
+    flex: 1,
+    gap: spacing.md,
+  },
+  controlsCard: {
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  searchRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: spacing.sm,
     alignItems: "center",
   },
+  toolbarRow: {
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    gap: spacing.xs,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   sortRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   paginationInfoRow: {
     flexDirection: "row",
@@ -382,8 +468,8 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    minWidth: 190,
-    minHeight: 52,
+    minWidth: 0,
+    minHeight: 44,
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
@@ -401,6 +487,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  activeIconButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   iconPressed: {
     opacity: 0.88,
   },
@@ -416,6 +506,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  tableCard: {
+    flex: 1,
+    padding: 0,
+    gap: 0,
+    overflow: "hidden",
+  },
+  tableContent: {
+    flex: 1,
+  },
+  tableHorizontalScroll: {
+    flex: 1,
+  },
+  tableHorizontalContent: {
+    flexGrow: 1,
+  },
+  tableContainer: {
+    flexGrow: 1,
+  },
   headerCell: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
@@ -425,7 +533,10 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   tableBody: {
-    maxHeight: 420,
+    flex: 1,
+  },
+  tableBodyContent: {
+    paddingBottom: spacing.xs,
   },
   tableRow: {
     flexDirection: "row",
@@ -488,6 +599,19 @@ const styles = StyleSheet.create({
   paginationControls: {
     flexDirection: "row",
     gap: spacing.sm,
+    flexWrap: "wrap",
+  },
+  tableFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  emptyState: {
+    flex: 1,
+    padding: spacing.lg,
+    justifyContent: "center",
   },
   modalBackdrop: {
     flex: 1,

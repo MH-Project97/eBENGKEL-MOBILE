@@ -73,6 +73,8 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - kartu ringkasan total barang/stok menipis dihapus dari halaman Barang untuk tampilan lebih bersih
   - toolbar Barang dirapikan menjadi ikon saja untuk cari, tambah, dan refresh
   - ukuran tombol pada halaman Barang diperkecil agar tabel terasa lebih padat dan rapi
+- layout halaman Barang kini fixed 1 layar: tombol aksi (tambah + sort + refresh) digabung dalam 1 baris ikon, parent screen tidak scroll, dan hanya area tabel yang scroll vertikal/horizontal
+- footer pagination halaman Barang tetap terlihat di layar agar navigasi halaman tidak perlu dicari ke bawah
 - Seed akun default otomatis saat database kosong:
   - admin / admin123
   - kasir / kasir123
@@ -110,6 +112,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Tambah edit/hapus untuk detail bengkel bila dibutuhkan admin
 
 ### P1
+- Isi halaman placeholder di tab Menu: Pengaturan, Tentang, dan Detail Bengkel
 - Export bon PDF/native share yang lebih kaya
 - Ringkasan omzet per hari/minggu/bulan
 - Notifikasi stok minimum dan badge jumlah stok kritis

@@ -3,9 +3,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -20,6 +22,8 @@ type ScreenShellProps = PropsWithChildren<{
   backButton?: boolean;
   headerAction?: ReactNode;
   hideHeader?: boolean;
+  scrollable?: boolean;
+  contentStyle?: StyleProp<ViewStyle>;
 }>;
 
 export function ScreenShell({
@@ -28,10 +32,18 @@ export function ScreenShell({
   backButton,
   headerAction,
   hideHeader,
+  scrollable = true,
+  contentStyle,
   children,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const mergedContentStyle = [
+    styles.content,
+    { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl },
+    !scrollable && styles.contentFill,
+    contentStyle,
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -39,35 +51,57 @@ export function ScreenShell({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {hideHeader ? null : (
-            <View style={styles.headerRow}>
-              <View style={styles.headerTextWrapper}>
-                {backButton ? (
-                  <ActionButton
-                    label="Kembali"
-                    compact
-                    onPress={() => router.back()}
-                    variant="secondary"
-                  >
-                    <Ionicons name="arrow-back" size={16} color={colors.text} />
-                  </ActionButton>
-                ) : null}
-                <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>{subtitle}</Text>
+        {scrollable ? (
+          <ScrollView
+            contentContainerStyle={mergedContentStyle}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {hideHeader ? null : (
+              <View style={styles.headerRow}>
+                <View style={styles.headerTextWrapper}>
+                  {backButton ? (
+                    <ActionButton
+                      label="Kembali"
+                      compact
+                      onPress={() => router.back()}
+                      variant="secondary"
+                    >
+                      <Ionicons name="arrow-back" size={16} color={colors.text} />
+                    </ActionButton>
+                  ) : null}
+                  <Text style={styles.title}>{title}</Text>
+                  <Text style={styles.subtitle}>{subtitle}</Text>
+                </View>
+                {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
               </View>
-              {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
-            </View>
-          )}
-          {children}
-        </ScrollView>
+            )}
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={mergedContentStyle}>
+            {hideHeader ? null : (
+              <View style={styles.headerRow}>
+                <View style={styles.headerTextWrapper}>
+                  {backButton ? (
+                    <ActionButton
+                      label="Kembali"
+                      compact
+                      onPress={() => router.back()}
+                      variant="secondary"
+                    >
+                      <Ionicons name="arrow-back" size={16} color={colors.text} />
+                    </ActionButton>
+                  ) : null}
+                  <Text style={styles.title}>{title}</Text>
+                  <Text style={styles.subtitle}>{subtitle}</Text>
+                </View>
+                {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
+              </View>
+            )}
+            {children}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -84,6 +118,9 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     gap: spacing.lg,
+  },
+  contentFill: {
+    flex: 1,
   },
   headerRow: {
     gap: spacing.md,
