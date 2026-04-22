@@ -28,6 +28,7 @@ export default function TabsLayout() {
         name="dashboard"
         options={{
           title: "Dashboard",
+          tabBarButtonTestID: "tab-dashboard",
           tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
         }}
       />
@@ -35,13 +36,23 @@ export default function TabsLayout() {
         name="cashier"
         options={{
           title: "Kasir",
+          tabBarButtonTestID: "tab-cashier",
           tabBarIcon: ({ color, size }) => <Ionicons name="cash" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="menu"
+        options={{
+          title: "Menu",
+          tabBarButtonTestID: "tab-menu",
+          tabBarIcon: ({ color, size }) => <Ionicons name="apps" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="transactions"
         options={{
           title: "Transaksi",
+          tabBarButtonTestID: "tab-transactions",
           tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
         }}
       />
@@ -49,6 +60,7 @@ export default function TabsLayout() {
         name="inventory"
         options={{
           title: "Barang",
+          tabBarButtonTestID: "tab-inventory",
           tabBarIcon: ({ color, size }) => <Ionicons name="cube" size={size} color={color} />,
         }}
       />

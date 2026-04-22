@@ -887,6 +887,28 @@ async def delete_transaction(
     return ApiMessage(message="Transaksi berhasil dihapus")
 
 
+@api_router.get("/backups/export")
+async def export_backup_data(admin_user: dict = Depends(get_admin_user)) -> dict:
+    workshop = await db.workshop.find_one({"id": "workshop-profile"}, {"_id": 0})
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", 1).to_list(200)
+    inventory_items = await db.inventory.find({}, {"_id": 0}).sort("updated_at", -1).to_list(1000)
+    transactions = await db.transactions.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+
+    normalized_transactions = [normalize_transaction_document(transaction) for transaction in transactions]
+    return {
+        "exported_at": now_iso(),
+        "workshop": workshop or WorkshopProfile().model_dump(),
+        "users": users,
+        "inventory_items": inventory_items,
+        "transactions": normalized_transactions,
+        "counts": {
+            "users": len(users),
+            "inventory_items": len(inventory_items),
+            "transactions": len(normalized_transactions),
+        },
+    }
+
+
 app.include_router(api_router)
 
 app.add_middleware(

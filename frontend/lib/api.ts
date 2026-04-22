@@ -211,4 +211,6 @@ export const api = {
       method: "DELETE",
       token,
     }),
+
+  exportBackup: (token: string) => request<Record<string, unknown>>("/backups/export", { token }),
 };
