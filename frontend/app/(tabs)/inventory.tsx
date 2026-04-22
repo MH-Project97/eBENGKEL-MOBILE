@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { ActionButton } from "../../components/ActionButton";
 import { DeleteConfirmationCard } from "../../components/DeleteConfirmationCard";
@@ -9,6 +9,7 @@ import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
+import { formatCurrency } from "../../lib/format";
 import { colors, spacing, typography } from "../../lib/theme";
 import type { InventoryItem } from "../../lib/types";
 
@@ -137,6 +138,7 @@ export default function InventoryScreen() {
 
       <SurfaceCard>
         <Text style={styles.sectionTitle}>{selectedItemId ? "Edit barang" : "Tambah barang baru"}</Text>
+        {selectedItemId ? <Text style={styles.helperText}>Mode edit aktif. Simpan akan memperbarui barang yang dipilih.</Text> : null}
         <FormField label="Nama barang" value={form.name} onChangeText={(value) => updateField("name", value)} testID="inventory-name-input" />
         <FormField label="Kategori" value={form.category} onChangeText={(value) => updateField("category", value)} testID="inventory-category-input" />
         <FormField label="Harga" value={form.price} onChangeText={(value) => updateField("price", value)} keyboardType="numeric" testID="inventory-price-input" />
@@ -176,19 +178,26 @@ export default function InventoryScreen() {
           <Text style={styles.helperText}>Belum ada data barang tersimpan.</Text>
         ) : (
           items.map((item) => (
-            <TouchableOpacity key={item.id} onPress={() => selectItem(item)} style={styles.itemCard} testID={`inventory-item-${item.id}`}>
+            <View key={item.id} style={[styles.itemCard, selectedItemId === item.id && styles.selectedItemCard]}>
               <View style={styles.flexOne}>
                 <Text style={styles.itemTitle}>{item.name}</Text>
                 <Text style={styles.helperText}>{item.category} • {item.supplier}</Text>
                 <Text style={styles.helperText}>{item.item_code}</Text>
               </View>
               <View style={styles.alignEnd}>
-                <Text style={styles.priceText}>Rp{Math.round(item.price)}</Text>
+                <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
                 <Text style={[styles.stockText, item.stock <= item.low_stock_threshold && styles.lowStockText]}>
                   Stok {item.stock}
                 </Text>
               </View>
-            </TouchableOpacity>
+              <ActionButton
+                label={selectedItemId === item.id ? "Dipilih untuk edit" : "Pilih untuk edit"}
+                compact
+                onPress={() => selectItem(item)}
+                variant={selectedItemId === item.id ? "primary" : "secondary"}
+                testID={`inventory-item-${item.id}`}
+              />
+            </View>
           ))
         )}
       </SurfaceCard>
@@ -225,12 +234,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   itemCard: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.md,
+  },
+  selectedItemCard: {
+    backgroundColor: colors.background,
+    padding: spacing.md,
   },
   flexOne: {
     flex: 1,

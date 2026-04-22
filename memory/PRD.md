@@ -40,6 +40,14 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - CRUD barang dasar (buat, ubah, cari, list)
   - transaksi kasir dengan barang + jasa + diskon + metode bayar + status
   - ringkasan dashboard
+- Pengembangan lanjutan fitur operasional:
+  - filter transaksi berdasarkan tanggal manual, quick range, status, dan nama mekanik
+  - edit transaksi dari riwayat transaksi ke mode edit di kasir
+  - hapus transaksi khusus admin dengan konfirmasi ketik `HAPUS`
+  - stok barang otomatis direkonsiliasi saat transaksi diubah atau dihapus
+  - edit pengguna lengkap (username, nama, email, role, password opsional)
+  - hapus pengguna khusus admin dengan konfirmasi ketik `HAPUS`
+  - hapus barang khusus admin dengan konfirmasi ketik `HAPUS`
 - Seed akun default otomatis saat database kosong:
   - admin / admin123
   - kasir / kasir123
@@ -59,14 +67,15 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - curl backend untuk health, login, item, transaksi, dashboard
   - screenshot login → dashboard
   - verifikasi link login → register pada viewport kecil
-  - regression test backend dari testing agent: 8/8 lulus
+  - regression test backend dari testing agent: 13/13 lulus pada iterasi terbaru
+  - verifikasi UI filter transaksi, mode edit transaksi, pilih barang inventori, dan hapus barang via preview
 
 ## Backlog Prioritas
 
 ### P0
 - Tambah validasi role/izin yang lebih granular per halaman
-- Tambah hapus barang / edit transaksi bila memang dibutuhkan operasional
 - Tambah filter dan pencarian lebih lengkap di transaksi
+- Tambah edit/hapus untuk detail bengkel bila dibutuhkan admin
 
 ### P1
 - Export bon PDF/native share yang lebih kaya
@@ -80,5 +89,5 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 
 ## Next Tasks
 - Rapikan analytics dashboard per periode
-- Tambahkan edit/hapus data dengan konfirmasi aman
-- Tambahkan filter transaksi berdasarkan tanggal, status, dan mekanik
+- Tambahkan edit/hapus untuk detail bengkel bila diperlukan
+- Tambahkan laporan omzet mingguan/bulanan dan ringkasan mekanik
