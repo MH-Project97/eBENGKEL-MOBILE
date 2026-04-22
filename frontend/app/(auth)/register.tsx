@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useState } from "react";
 import {
@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
 } from "react-native";
@@ -18,6 +19,7 @@ import { colors, spacing, typography } from "../../lib/theme";
 
 export default function RegisterScreen() {
   const { register } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState({
     username: "",
     full_name: "",
@@ -53,51 +55,59 @@ export default function RegisterScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <SurfaceCard style={styles.card}>
-        <Text style={styles.title}>Registrasi pengguna baru</Text>
-        <Text style={styles.subtitle}>Email opsional. Akun baru otomatis bisa langsung masuk.</Text>
-        <FormField
-          label="Username"
-          value={form.username}
-          onChangeText={(value) => updateField("username", value)}
-          autoCapitalize="none"
-          testID="register-username-input"
-        />
-        <FormField
-          label="Nama Lengkap"
-          value={form.full_name}
-          onChangeText={(value) => updateField("full_name", value)}
-          testID="register-name-input"
-        />
-        <FormField
-          label="Password"
-          value={form.password}
-          onChangeText={(value) => updateField("password", value)}
-          secureTextEntry
-          testID="register-password-input"
-        />
-        <FormField
-          label="Email (opsional)"
-          value={form.email}
-          onChangeText={(value) => updateField("email", value)}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          testID="register-email-input"
-        />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <ActionButton
-          label={loading ? "Menyimpan..." : "Daftar dan Masuk"}
-          onPress={handleRegister}
-          testID="register-submit-button"
-        >
-          {loading ? <ActivityIndicator color={colors.surface} size="small" /> : null}
-        </ActionButton>
-        <Link href={"/login" as Href} asChild>
-          <Pressable style={styles.linkButton} testID="go-login-button">
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <SurfaceCard style={styles.card}>
+          <Text style={styles.title}>Registrasi pengguna baru</Text>
+          <Text style={styles.subtitle}>Email opsional. Akun baru otomatis bisa langsung masuk.</Text>
+          <FormField
+            label="Username"
+            value={form.username}
+            onChangeText={(value) => updateField("username", value)}
+            autoCapitalize="none"
+            testID="register-username-input"
+          />
+          <FormField
+            label="Nama Lengkap"
+            value={form.full_name}
+            onChangeText={(value) => updateField("full_name", value)}
+            testID="register-name-input"
+          />
+          <FormField
+            label="Password"
+            value={form.password}
+            onChangeText={(value) => updateField("password", value)}
+            secureTextEntry
+            testID="register-password-input"
+          />
+          <FormField
+            label="Email (opsional)"
+            value={form.email}
+            onChangeText={(value) => updateField("email", value)}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            testID="register-email-input"
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <ActionButton
+            label={loading ? "Menyimpan..." : "Daftar dan Masuk"}
+            onPress={handleRegister}
+            testID="register-submit-button"
+          >
+            {loading ? <ActivityIndicator color={colors.surface} size="small" /> : null}
+          </ActionButton>
+          <Pressable
+            onPress={() => router.push("/login" as Href)}
+            style={styles.linkButton}
+            testID="go-login-button"
+          >
             <Text style={styles.linkText}>Sudah punya akun? Kembali ke login</Text>
           </Pressable>
-        </Link>
-      </SurfaceCard>
+        </SurfaceCard>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -106,8 +116,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
     padding: spacing.lg,
     justifyContent: "center",
+    minHeight: "100%",
   },
   card: {
     gap: spacing.md,
@@ -131,6 +144,7 @@ const styles = StyleSheet.create({
   linkButton: {
     minHeight: 44,
     justifyContent: "center",
+    paddingVertical: spacing.xs,
   },
   linkText: {
     color: colors.primary,

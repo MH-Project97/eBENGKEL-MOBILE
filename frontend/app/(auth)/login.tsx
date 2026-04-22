@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useState } from "react";
 import {
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -21,6 +22,7 @@ import { colors, spacing, typography } from "../../lib/theme";
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const router = useRouter();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
@@ -43,40 +45,48 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <Image source={{ uri: AUTH_HERO }} style={styles.hero} />
-      <SurfaceCard style={styles.card}>
-        <Text style={styles.title}>Masuk ke Bengkel</Text>
-        <Text style={styles.subtitle}>Kelola kasir, stok, transaksi, dan tim dari satu aplikasi.</Text>
-        <FormField
-          label="Username"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          testID="login-username-input"
-        />
-        <FormField
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          testID="login-password-input"
-        />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <ActionButton label={loading ? "Memproses..." : "Masuk"} onPress={handleLogin} testID="login-submit-button">
-          {loading ? <ActivityIndicator color={colors.surface} size="small" /> : null}
-        </ActionButton>
-        <View style={styles.demoBox}>
-          <Text style={styles.demoTitle}>Akun demo cepat</Text>
-          <Text style={styles.demoText}>admin / admin123</Text>
-          <Text style={styles.demoText}>kasir / kasir123</Text>
-          <Text style={styles.demoText}>mekanik / mekanik123</Text>
-        </View>
-        <Link href={"/register" as Href} asChild>
-          <Pressable style={styles.linkButton} testID="go-register-button">
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Image source={{ uri: AUTH_HERO }} style={styles.hero} />
+        <SurfaceCard style={styles.card}>
+          <Text style={styles.title}>Masuk ke Bengkel</Text>
+          <Text style={styles.subtitle}>Kelola kasir, stok, transaksi, dan tim dari satu aplikasi.</Text>
+          <FormField
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            testID="login-username-input"
+          />
+          <FormField
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            testID="login-password-input"
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <ActionButton label={loading ? "Memproses..." : "Masuk"} onPress={handleLogin} testID="login-submit-button">
+            {loading ? <ActivityIndicator color={colors.surface} size="small" /> : null}
+          </ActionButton>
+          <View style={styles.demoBox}>
+            <Text style={styles.demoTitle}>Akun demo cepat</Text>
+            <Text style={styles.demoText}>admin / admin123</Text>
+            <Text style={styles.demoText}>kasir / kasir123</Text>
+            <Text style={styles.demoText}>mekanik / mekanik123</Text>
+          </View>
+          <Pressable
+            onPress={() => router.push("/register" as Href)}
+            style={styles.linkButton}
+            testID="go-register-button"
+          >
             <Text style={styles.linkText}>Belum punya akun? Daftar sekarang</Text>
           </Pressable>
-        </Link>
-      </SurfaceCard>
+        </SurfaceCard>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -85,9 +95,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
     padding: spacing.lg,
-    justifyContent: "center",
     gap: spacing.lg,
+    justifyContent: "center",
+    minHeight: "100%",
   },
   hero: {
     width: "100%",
@@ -134,6 +147,7 @@ const styles = StyleSheet.create({
   linkButton: {
     minHeight: 44,
     justifyContent: "center",
+    paddingVertical: spacing.xs,
   },
   linkText: {
     color: colors.primary,
