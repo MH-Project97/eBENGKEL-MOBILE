@@ -69,6 +69,10 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - tabel Barang mendukung sorting berdasarkan kode, stok, dan harga
   - pagination halaman Barang ditambahkan untuk data inventori besar
   - badge warna stok langsung muncul di kolom stok agar item kritis cepat terlihat
+  - page size tabel Barang kini otomatis menyesuaikan tinggi layar
+  - kartu ringkasan total barang/stok menipis dihapus dari halaman Barang untuk tampilan lebih bersih
+  - toolbar Barang dirapikan menjadi ikon saja untuk cari, tambah, dan refresh
+  - ukuran tombol pada halaman Barang diperkecil agar tabel terasa lebih padat dan rapi
 - Seed akun default otomatis saat database kosong:
   - admin / admin123
   - kasir / kasir123
@@ -96,6 +100,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - self-test backend menegaskan update barang sekarang admin-only (kasir mendapat 403)
   - verifikasi UI Barang lulus untuk tabel, modal edit, dan close path modal
   - regression test sorting/pagination/badge barang lulus pada backend dan frontend
+  - verifikasi UI tambahan lulus untuk toolbar icon-only dan page info dinamis di halaman Barang
 
 ## Backlog Prioritas
 

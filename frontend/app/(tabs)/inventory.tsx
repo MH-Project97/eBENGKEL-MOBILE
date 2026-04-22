@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { ActionButton } from "../../components/ActionButton";
 import { DeleteConfirmationCard } from "../../components/DeleteConfirmationCard";
@@ -15,8 +15,6 @@ import { colors, spacing, typography } from "../../lib/theme";
 import type { InventoryItem } from "../../lib/types";
 
 const units = ["pcs", "bungkus", "kotak", "set", "liter", "botol", "pasang", "roll"];
-const rowsPerPage = 15;
-
 const emptyForm = {
   item_code: "",
   name: "",
@@ -43,6 +41,7 @@ const columnWidths = {
 
 export default function InventoryScreen() {
   const { session } = useAuth();
+  const { height } = useWindowDimensions();
   const isAdmin = session?.user.role === "admin";
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchDraft, setSearchDraft] = useState("");
@@ -71,7 +70,18 @@ export default function InventoryScreen() {
     }, [loadItems]),
   );
 
-  const lowStockCount = useMemo(() => items.filter((item) => item.stock <= item.low_stock_threshold).length, [items]);
+  const rowsPerPage = useMemo(() => {
+    if (height >= 920) {
+      return 16;
+    }
+    if (height >= 820) {
+      return 14;
+    }
+    if (height >= 740) {
+      return 12;
+    }
+    return 10;
+  }, [height]);
 
   const sortedItems = useMemo(() => {
     const nextItems = [...items];
@@ -95,7 +105,7 @@ export default function InventoryScreen() {
   const paginatedItems = useMemo(() => {
     const start = (currentPageSafe - 1) * rowsPerPage;
     return sortedItems.slice(start, start + rowsPerPage);
-  }, [currentPageSafe, sortedItems]);
+  }, [currentPageSafe, rowsPerPage, sortedItems]);
 
   const updateField = (field: keyof typeof emptyForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -201,17 +211,6 @@ export default function InventoryScreen() {
 
   return (
     <ScreenShell title="" subtitle="" hideHeader>
-      <View style={styles.summaryRow}>
-        <SurfaceCard style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total barang</Text>
-          <Text style={styles.summaryValue}>{items.length}</Text>
-        </SurfaceCard>
-        <SurfaceCard style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Stok menipis</Text>
-          <Text style={[styles.summaryValue, { color: colors.danger }]}>{lowStockCount}</Text>
-        </SurfaceCard>
-      </View>
-
       <SurfaceCard>
         <View style={styles.toolbarRow}>
           <TextInput
@@ -222,19 +221,23 @@ export default function InventoryScreen() {
             style={styles.searchInput}
             testID="inventory-list-search-input"
           />
-          <ActionButton
-            label="Cari"
-            compact
+          <Pressable
             onPress={() => {
               setSearchQuery(searchDraft);
               setCurrentPage(1);
             }}
-            variant="secondary"
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
             testID="inventory-search-button"
-          />
-          {isAdmin ? <ActionButton label="Tambah Barang Baru" compact onPress={openCreateModal} testID="inventory-add-button" /> : null}
+          >
+            <Ionicons name="search" size={18} color={colors.text} />
+          </Pressable>
+          {isAdmin ? (
+            <Pressable onPress={openCreateModal} style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]} testID="inventory-add-button">
+              <Ionicons name="add" size={18} color={colors.text} />
+            </Pressable>
+          ) : null}
           <Pressable onPress={() => void loadItems()} style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]} testID="inventory-refresh-button">
-            <Ionicons name="refresh" size={20} color={colors.text} />
+            <Ionicons name="refresh" size={18} color={colors.text} />
           </Pressable>
         </View>
       </SurfaceCard>
@@ -360,25 +363,6 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  summaryRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  summaryCard: {
-    width: "48%",
-  },
-  summaryLabel: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyBold,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  summaryValue: {
-    color: colors.text,
-    fontFamily: typography.heading,
-    fontSize: 28,
-  },
   toolbarRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -409,8 +393,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   iconButton: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     borderWidth: 1,
     borderColor: colors.black,
     backgroundColor: colors.surface,
