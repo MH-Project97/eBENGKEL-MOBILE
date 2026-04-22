@@ -22,8 +22,8 @@ import { colors, spacing, typography } from "../../lib/theme";
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin123");
+  const [username, setUsername] = useState("ownerdemo");
+  const [password, setPassword] = useState("owner123");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -80,9 +80,9 @@ export default function LoginScreen() {
           </ActionButton>
           <View style={styles.demoBox}>
             <Text style={styles.demoTitle}>Akun demo cepat</Text>
-            <Text style={styles.demoText}>admin / admin123</Text>
-            <Text style={styles.demoText}>kasir / kasir123</Text>
-            <Text style={styles.demoText}>mekanik / mekanik123</Text>
+            <Text style={styles.demoText}>ownerdemo / owner123</Text>
+            <Text style={styles.demoText}>staffdemo / staff123</Text>
+            <Text style={styles.demoText}>staffdemo aktif setelah disetujui owner/admin</Text>
           </View>
           <Pressable
             onPress={() => router.push("/register" as Href)}

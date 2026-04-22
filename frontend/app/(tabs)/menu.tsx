@@ -20,7 +20,7 @@ const menuSections = [
     ],
   },
   {
-    title: "Sistem",
+    title: "Preferensi",
     items: [
       { label: "Pengaturan", route: "/settings" as Href, icon: "settings-outline" as const },
       { label: "Tentang", route: "/about" as Href, icon: "information-circle-outline" as const },

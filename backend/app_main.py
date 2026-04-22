@@ -10,7 +10,7 @@ from typing import Literal, Optional
 import bcrypt
 import jwt
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
@@ -27,7 +27,10 @@ db = client[os.environ.get("DB_NAME", "test_database")]
 JWT_SECRET = os.environ.get("JWT_SECRET", "bengkel-multi-workshop-secret")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
+REFRESH_TOKEN_EXPIRE_DAYS = 30
 WORKSHOP_CODE_LENGTH = 18
+FAILED_LOGIN_THRESHOLD = 5
+LOCKOUT_MINUTES = 15
 security = HTTPBearer(auto_error=False)
 
 Role = Literal["owner", "admin", "kasir", "mekanik"]
@@ -64,9 +67,45 @@ def create_token(user_id: str, username: str, workshop_id: str, role: Role) -> s
         "username": username,
         "workshop_id": workshop_id,
         "role": role,
+        "type": "access",
         "exp": datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def create_refresh_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "type": "refresh",
+        "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
 
 
 def hash_password(password: str) -> str:
@@ -345,11 +384,67 @@ async def ensure_indexes() -> None:
     await db.workshop_memberships.create_index([("workshop_id", 1), ("status", 1)])
     await db.inventory.create_index([("workshop_id", 1), ("item_code", 1)], unique=True)
     await db.transactions.create_index([("workshop_id", 1), ("created_at", -1)])
+    await db.login_attempts.create_index("identifier", unique=True)
+
+
+async def seed_admin() -> None:
+    admin_username = normalize_username(os.environ.get("ADMIN_USERNAME", ""))
+    admin_password = os.environ.get("ADMIN_PASSWORD", "")
+    admin_full_name = os.environ.get("ADMIN_FULL_NAME", "Admin Owner")
+    admin_workshop_name = os.environ.get("ADMIN_WORKSHOP_NAME", "")
+    if not admin_username or not admin_password or not admin_workshop_name:
+        return
+
+    existing_user = await get_user_account_by_username(admin_username)
+    timestamp = now_iso()
+    if existing_user:
+        if not verify_password(admin_password, existing_user["password_hash"]):
+            await db.users.update_one(
+                {"id": existing_user["id"]},
+                {"$set": {"password_hash": hash_password(admin_password)}},
+            )
+        return
+
+    workshop_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    user_document = {
+        "id": user_id,
+        "username": admin_username,
+        "full_name": admin_full_name,
+        "password_hash": hash_password(admin_password),
+        "created_at": timestamp,
+        "last_workshop_id": workshop_id,
+    }
+    workshop_document = {
+        "id": workshop_id,
+        "workshop_code": await generate_unique_workshop_code(),
+        "workshop_name": admin_workshop_name,
+        "owner_name": admin_full_name,
+        "phone": "",
+        "address": "",
+        "open_hours": "",
+        "notes": "",
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    membership_document = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "workshop_id": workshop_id,
+        "role": "owner",
+        "status": "active",
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    await db.users.insert_one({**user_document})
+    await db.workshops.insert_one({**workshop_document})
+    await db.workshop_memberships.insert_one({**membership_document})
 
 
 @app.on_event("startup")
 async def startup_event() -> None:
     await ensure_indexes()
+    await seed_admin()
 
 
 async def get_user_account_by_username(username: str) -> Optional[dict]:
@@ -442,6 +537,50 @@ async def build_auth_response(user_document: dict, active_workshop_id: Optional[
     return AuthResponse(access_token=token, user=session_user)
 
 
+async def issue_auth_bundle(response: Response, user_document: dict, active_workshop_id: Optional[str] = None) -> AuthResponse:
+    auth_response = await build_auth_response(user_document, active_workshop_id)
+    refresh_token = create_refresh_token(auth_response.user.id)
+    set_auth_cookies(response, auth_response.access_token, refresh_token)
+    return auth_response
+
+
+def parse_locked_until(locked_until: Optional[str]) -> Optional[datetime]:
+    if not locked_until:
+        return None
+    return datetime.fromisoformat(locked_until)
+
+
+async def ensure_login_not_locked(identifier: str) -> None:
+    attempt = await db.login_attempts.find_one({"identifier": identifier}, {"_id": 0})
+    if not attempt:
+        return
+    locked_until = parse_locked_until(attempt.get("locked_until"))
+    if locked_until and locked_until > datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Terlalu banyak percobaan login. Coba lagi dalam {LOCKOUT_MINUTES} menit.",
+        )
+    if locked_until and locked_until <= datetime.now(timezone.utc):
+        await db.login_attempts.delete_one({"identifier": identifier})
+
+
+async def record_failed_login(identifier: str) -> None:
+    attempt = await db.login_attempts.find_one({"identifier": identifier}, {"_id": 0})
+    failed_count = int(attempt.get("failed_count", 0)) + 1 if attempt else 1
+    payload = {
+        "identifier": identifier,
+        "failed_count": failed_count,
+        "last_failed_at": now_iso(),
+    }
+    if failed_count >= FAILED_LOGIN_THRESHOLD:
+        payload["locked_until"] = (datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_MINUTES)).isoformat()
+    await db.login_attempts.update_one({"identifier": identifier}, {"$set": payload}, upsert=True)
+
+
+async def clear_login_attempts(identifier: str) -> None:
+    await db.login_attempts.delete_one({"identifier": identifier})
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
@@ -458,6 +597,8 @@ async def get_current_user(
     user_id = payload.get("sub")
     workshop_id = payload.get("workshop_id")
     role = payload.get("role")
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Tipe token tidak valid")
     if not user_id or not workshop_id or not role:
         raise HTTPException(status_code=401, detail="Token tidak lengkap")
 
@@ -640,25 +781,15 @@ async def health_check() -> dict:
 
 
 @api_router.post("/auth/register", response_model=RegisterResponse)
-async def register_user(payload: RegisterRequest) -> RegisterResponse:
+async def register_user(payload: RegisterRequest, response: Response) -> RegisterResponse:
     normalized_username = normalize_username(payload.username)
     existing_user = await get_user_account_by_username(normalized_username)
     if existing_user:
         raise HTTPException(status_code=400, detail="Username sudah dipakai")
 
     await ensure_unique_email(payload.email)
-    user_id = str(uuid.uuid4())
+    normalized_email = normalize_email(payload.email)
     created_at = now_iso()
-    user_document = {
-        "id": user_id,
-        "username": normalized_username,
-        "full_name": payload.full_name.strip(),
-        "email": normalize_email(payload.email),
-        "password_hash": hash_password(payload.password),
-        "created_at": created_at,
-        "last_workshop_id": None,
-    }
-    await db.users.insert_one({**user_document})
 
     if payload.account_type == "employee":
         workshop_code = (payload.workshop_code or "").strip().upper()
@@ -669,6 +800,18 @@ async def register_user(payload: RegisterRequest) -> RegisterResponse:
         if not workshop:
             raise HTTPException(status_code=404, detail="ID bengkel tidak ditemukan")
 
+        user_id = str(uuid.uuid4())
+        user_document = {
+            "id": user_id,
+            "username": normalized_username,
+            "full_name": payload.full_name.strip(),
+            "password_hash": hash_password(payload.password),
+            "created_at": created_at,
+            "last_workshop_id": None,
+        }
+        if normalized_email:
+            user_document["email"] = normalized_email
+
         membership_document = {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
@@ -678,6 +821,7 @@ async def register_user(payload: RegisterRequest) -> RegisterResponse:
             "created_at": created_at,
             "updated_at": created_at,
         }
+        await db.users.insert_one({**user_document})
         await db.workshop_memberships.insert_one({**membership_document})
         return RegisterResponse(
             message="Pendaftaran berhasil dikirim. Tunggu persetujuan admin bengkel.",
@@ -687,6 +831,18 @@ async def register_user(payload: RegisterRequest) -> RegisterResponse:
     workshop_name = (payload.workshop_name or "").strip()
     if not workshop_name:
         raise HTTPException(status_code=400, detail="Nama bengkel wajib diisi untuk pendaftaran pemilik")
+
+    user_id = str(uuid.uuid4())
+    user_document = {
+        "id": user_id,
+        "username": normalized_username,
+        "full_name": payload.full_name.strip(),
+        "password_hash": hash_password(payload.password),
+        "created_at": created_at,
+        "last_workshop_id": None,
+    }
+    if normalized_email:
+        user_document["email"] = normalized_email
 
     workshop_id = str(uuid.uuid4())
     workshop_document = {
@@ -711,11 +867,12 @@ async def register_user(payload: RegisterRequest) -> RegisterResponse:
         "updated_at": created_at,
     }
 
+    await db.users.insert_one({**user_document})
     await db.workshops.insert_one({**workshop_document})
     await db.workshop_memberships.insert_one({**membership_document})
     await db.users.update_one({"id": user_id}, {"$set": {"last_workshop_id": workshop_id}})
 
-    auth_response = await build_auth_response(user_document, workshop_id)
+    auth_response = await issue_auth_bundle(response, user_document, workshop_id)
     return RegisterResponse(
         message="Akun pemilik bengkel berhasil dibuat.",
         access_token=auth_response.access_token,
@@ -725,10 +882,22 @@ async def register_user(payload: RegisterRequest) -> RegisterResponse:
 
 
 @api_router.post("/auth/login", response_model=AuthResponse)
-async def login_user(payload: LoginRequest) -> AuthResponse:
+async def login_user(payload: LoginRequest, request: Request, response: Response) -> AuthResponse:
+    identifier = f"{request.client.host if request.client else 'unknown'}:{normalize_username(payload.username)}"
+    await ensure_login_not_locked(identifier)
+
     user = await get_user_account_by_username(payload.username)
     if not user or not verify_password(payload.password, user["password_hash"]):
+        await record_failed_login(identifier)
+        attempt = await db.login_attempts.find_one({"identifier": identifier}, {"_id": 0})
+        if attempt and int(attempt.get("failed_count", 0)) >= FAILED_LOGIN_THRESHOLD:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Terlalu banyak percobaan login. Coba lagi dalam {LOCKOUT_MINUTES} menit.",
+            )
         raise HTTPException(status_code=401, detail="Username atau password salah")
+
+    await clear_login_attempts(identifier)
 
     active_accesses = await get_workshop_accesses(user["id"], ["active"])
     if not active_accesses:
@@ -741,7 +910,7 @@ async def login_user(payload: LoginRequest) -> AuthResponse:
     if preferred_workshop_id and not any(access.workshop_id == preferred_workshop_id for access in active_accesses):
         preferred_workshop_id = active_accesses[0].workshop_id
 
-    return await build_auth_response(user, preferred_workshop_id or active_accesses[0].workshop_id)
+    return await issue_auth_bundle(response, user, preferred_workshop_id or active_accesses[0].workshop_id)
 
 
 @api_router.get("/auth/me", response_model=UserSession)
@@ -752,6 +921,7 @@ async def read_me(current_user: dict = Depends(get_current_user)) -> UserSession
 @api_router.post("/auth/switch-workshop", response_model=AuthResponse)
 async def switch_workshop(
     payload: SwitchWorkshopRequest,
+    response: Response,
     current_user: dict = Depends(get_current_user),
 ) -> AuthResponse:
     membership = await db.workshop_memberships.find_one(
@@ -764,7 +934,7 @@ async def switch_workshop(
     user_account = await get_user_account_by_id(current_user["id"])
     if not user_account:
         raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan")
-    return await build_auth_response(user_account, payload.workshop_id)
+    return await issue_auth_bundle(response, user_account, payload.workshop_id)
 
 
 @api_router.get("/dashboard/summary", response_model=DashboardSummary)
@@ -808,6 +978,7 @@ async def list_workshops(current_user: dict = Depends(get_current_user)) -> list
 @api_router.post("/workshops", response_model=AuthResponse)
 async def create_workshop(
     payload: WorkshopCreateRequest,
+    response: Response,
     owner_user: dict = Depends(get_owner_user),
 ) -> AuthResponse:
     timestamp = now_iso()
@@ -839,7 +1010,35 @@ async def create_workshop(
     user_account = await get_user_account_by_id(owner_user["id"])
     if not user_account:
         raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan")
-    return await build_auth_response(user_account, workshop_id)
+    return await issue_auth_bundle(response, user_account, workshop_id)
+
+
+@api_router.post("/auth/refresh", response_model=AuthResponse)
+async def refresh_auth_token(request: Request, response: Response) -> AuthResponse:
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token tidak ditemukan")
+
+    try:
+        payload = jwt.decode(refresh_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError as exc:
+        raise HTTPException(status_code=401, detail="Refresh token sudah berakhir") from exc
+    except jwt.InvalidTokenError as exc:
+        raise HTTPException(status_code=401, detail="Refresh token tidak valid") from exc
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Tipe refresh token tidak valid")
+
+    user_account = await get_user_account_by_id(payload.get("sub", ""))
+    if not user_account:
+        raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan")
+    return await issue_auth_bundle(response, user_account, user_account.get("last_workshop_id"))
+
+
+@api_router.post("/auth/logout", response_model=ApiMessage)
+async def logout_user(response: Response) -> ApiMessage:
+    clear_auth_cookies(response)
+    return ApiMessage(message="Berhasil keluar")
 
 
 @api_router.get("/workshop", response_model=WorkshopDetailResponse)
@@ -1291,10 +1490,22 @@ async def export_backup_data(manager_user: dict = Depends(get_manager_user)) -> 
 
 app.include_router(api_router)
 
+allowed_origins = [
+    origin
+    for origin in [
+        os.environ.get("FRONTEND_URL"),
+        "http://localhost:3000",
+        "http://localhost:8081",
+        "http://localhost:19006",
+    ]
+    if origin
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.preview\.emergentagent\.com",
     allow_methods=["*"],
     allow_headers=["*"],
 )

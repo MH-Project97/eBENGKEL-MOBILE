@@ -8,13 +8,18 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Kasir harus mencakup barang, jasa, diskon, metode bayar, dan bon sederhana
 - Pencatatan transaksi harus menyimpan tanggal, pelanggan, item, total, status, invoice, catatan, dan mekanik
 - Daftar barang harus memiliki nama, kategori, harga, stok, supplier, kode barang, dan peringatan stok menipis
-- Role pengguna: admin, kasir, mekanik
+- Role pengguna: owner, admin, kasir, mekanik
+- Aplikasi kini harus mendukung **multi-bengkel / multi-user**:
+  - owner mendaftar sambil membuat bengkel pertama
+  - user/karyawan mendaftar sendiri lalu join via ID bengkel 18 karakter
+  - data transaksi, barang, dashboard, dan anggota harus terisolasi penuh per bengkel
+  - owner/admin dapat menyetujui atau menghapus akses karyawan dari halaman bengkel
 
 ## Arsitektur
 - Frontend: Expo Router + React Native + TypeScript
 - Backend: FastAPI + MongoDB (Motor)
-- Auth: login/register berbasis JWT sederhana
-- Penyimpanan sesi: AsyncStorage
+- Auth: JWT access token + refresh cookie httpOnly, lockout login, switch bengkel aktif
+- Penyimpanan sesi: AsyncStorage (mobile) + cookie auth backend untuk hardening browser flow
 - Navigasi: auth screens + tab dashboard/kasir/transaksi/barang + stack detail bengkel/pengguna
 
 ## User Personas
@@ -33,6 +38,20 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 ## Yang Sudah Diimplementasikan
 
 ### 2026-04-22
+- Fondasi multi-bengkel dan multi-user selesai:
+  - owner register sambil membuat bengkel pertama
+  - user/karyawan register via ID bengkel 18 karakter
+  - persetujuan akses karyawan oleh owner/admin dari halaman Detail Bengkel
+  - owner dapat membuat bengkel baru dan berpindah bengkel aktif
+  - seluruh data dashboard, barang, transaksi, pengguna, dan backup kini terisolasi per bengkel
+  - auth diperkeras dengan cookie httpOnly, refresh endpoint, login-attempt lockout, dan seed owner opsional berbasis env
+- UI utama dirapikan ulang ke arah modern-minimal:
+  - card gambar/hero di login dan dashboard dihapus
+  - header dashboard kini menampilkan nama bengkel aktif, nama user, dan role
+  - tombol keluar dipindah ke tab Menu bagian Sistem
+  - halaman Detail Bengkel menampilkan ID bengkel, switch bengkel, form profil, approval karyawan, dan tambah bengkel baru
+  - halaman Detail Pengguna kini fokus pada anggota aktif bengkel + ubah role/hapus akses
+- Data lama single-bengkel dihapus dari database dan diganti struktur baru multi-bengkel
 - Backend FastAPI lengkap untuk:
   - login, register, profil user aktif
   - manajemen pengguna dan role
@@ -75,10 +94,6 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - ukuran tombol pada halaman Barang diperkecil agar tabel terasa lebih padat dan rapi
 - layout halaman Barang kini fixed 1 layar: tombol aksi (tambah + sort + refresh) digabung dalam 1 baris ikon, parent screen tidak scroll, dan hanya area tabel yang scroll vertikal/horizontal
 - footer pagination halaman Barang tetap terlihat di layar agar navigasi halaman tidak perlu dicari ke bawah
-- Seed akun default otomatis saat database kosong:
-  - admin / admin123
-  - kasir / kasir123
-  - mekanik / mekanik123
 - Frontend Expo mobile dengan desain Swiss high-contrast:
   - layar login dan register
   - dashboard dengan statistik dan kartu menu
@@ -87,8 +102,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - layar daftar barang
   - layar detail bengkel
   - layar detail pengguna
-- Font dan visual mengikuti panduan desain: Chivo + IBM Plex Sans, border tegas, tap targets besar, layout lapang
-- Ilustrasi hero berbasis base64 untuk kompatibilitas Expo preview
+- Font dan visual kini memakai arah lebih modern-minimal dengan Outfit + Figtree, radius lebih halus, card lebih bersih, dan hierarchy yang lebih elegan
 - Kredensial demo ditulis ke `/app/memory/test_credentials.md`
 - Pengujian:
   - curl backend untuk health, login, item, transaksi, dashboard
@@ -103,27 +117,28 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - verifikasi UI Barang lulus untuk tabel, modal edit, dan close path modal
   - regression test sorting/pagination/badge barang lulus pada backend dan frontend
   - verifikasi UI tambahan lulus untuk toolbar icon-only dan page info dinamis di halaman Barang
+  - self-test backend multi-bengkel lulus untuk owner register, employee pending→approve, create bengkel kedua, switch bengkel, cookie auth, dan isolasi inventori antar bengkel
+  - regression test iteration_8 menandai bug register email-kosong + auth hardening gaps; semuanya sudah ditindaklanjuti
 
 ## Backlog Prioritas
 
 ### P0
-- Tambah validasi role/izin yang lebih granular per halaman
-- Tambah filter dan pencarian lebih lengkap di transaksi
-- Tambah edit/hapus untuk detail bengkel bila dibutuhkan admin
+- Isi halaman placeholder di tab Menu: Pengaturan dan Tentang
+- Tambah selector/indikator bengkel aktif yang lebih menonjol di luar halaman Detail Bengkel bila diperlukan
+- Tambah retest penuh setelah perubahan auth multi-bengkel
 
 ### P1
-- Isi halaman placeholder di tab Menu: Pengaturan, Tentang, dan Detail Bengkel
 - Export bon PDF/native share yang lebih kaya
 - Ringkasan omzet per hari/minggu/bulan
 - Notifikasi stok minimum dan badge jumlah stok kritis
 - Ringkasan pelanggan dengan filter pelanggan/invoice yang lebih cepat
 
 ### P2
-- Multi-bengkel / multi-cabang
 - Riwayat audit aktivitas pengguna
 - Laporan servis per mekanik dan performa tim
+- Preferensi tema, notifikasi, dan personalisasi UI
 
 ## Next Tasks
-- Rapikan analytics dashboard per periode
-- Tambahkan edit/hapus untuk detail bengkel bila diperlukan
-- Tambahkan laporan omzet mingguan/bulanan dan ringkasan mekanik
+- Isi halaman Pengaturan dan Tentang
+- Tambahkan analytics dashboard per periode bengkel aktif
+- Tambahkan laporan omzet mingguan/bulanan dan ringkasan mekanik per bengkel
