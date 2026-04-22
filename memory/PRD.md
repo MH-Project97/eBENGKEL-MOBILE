@@ -66,6 +66,9 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - struktur data barang diperluas: kode, nama, stok, satuan, harga modal, harga jual bengkel, harga jual konsumen, keterangan
   - edit barang dipindahkan ke modal khusus dan hanya admin yang dapat mengaksesnya
   - tombol hapus barang diletakkan di dalam modal edit admin
+  - tabel Barang mendukung sorting berdasarkan kode, stok, dan harga
+  - pagination halaman Barang ditambahkan untuk data inventori besar
+  - badge warna stok langsung muncul di kolom stok agar item kritis cepat terlihat
 - Seed akun default otomatis saat database kosong:
   - admin / admin123
   - kasir / kasir123
@@ -92,6 +95,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - regression test backend untuk dashboard + backup data lulus, serta verifikasi frontend untuk 5 tab dan tab Menu berhasil
   - self-test backend menegaskan update barang sekarang admin-only (kasir mendapat 403)
   - verifikasi UI Barang lulus untuk tabel, modal edit, dan close path modal
+  - regression test sorting/pagination/badge barang lulus pada backend dan frontend
 
 ## Backlog Prioritas
 
