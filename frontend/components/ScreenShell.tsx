@@ -19,6 +19,7 @@ type ScreenShellProps = PropsWithChildren<{
   subtitle: string;
   backButton?: boolean;
   headerAction?: ReactNode;
+  hideHeader?: boolean;
 }>;
 
 export function ScreenShell({
@@ -26,6 +27,7 @@ export function ScreenShell({
   subtitle,
   backButton,
   headerAction,
+  hideHeader,
   children,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
@@ -45,23 +47,25 @@ export function ScreenShell({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.headerRow}>
-            <View style={styles.headerTextWrapper}>
-              {backButton ? (
-                <ActionButton
-                  label="Kembali"
-                  compact
-                  onPress={() => router.back()}
-                  variant="secondary"
-                >
-                  <Ionicons name="arrow-back" size={16} color={colors.text} />
-                </ActionButton>
-              ) : null}
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
+          {hideHeader ? null : (
+            <View style={styles.headerRow}>
+              <View style={styles.headerTextWrapper}>
+                {backButton ? (
+                  <ActionButton
+                    label="Kembali"
+                    compact
+                    onPress={() => router.back()}
+                    variant="secondary"
+                  >
+                    <Ionicons name="arrow-back" size={16} color={colors.text} />
+                  </ActionButton>
+                ) : null}
+                <Text style={styles.title}>{title}</Text>
+                <Text style={styles.subtitle}>{subtitle}</Text>
+              </View>
+              {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
             </View>
-            {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
-          </View>
+          )}
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
