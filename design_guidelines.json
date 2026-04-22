@@ -1,0 +1,152 @@
+{
+  "project_metadata": {
+    "name": "Bengkel Management App",
+    "type": "mobile_web_app",
+    "framework": "Expo React Native (Web/Mobile)",
+    "primary_persona": "E1 (The Anti-AI Designer)"
+  },
+  "theme_and_archetype": {
+    "theme": "Light",
+    "archetype": "4 (Swiss & High-Contrast)",
+    "rationale": "Authority, clarity, and function-first. A workshop app demands absolute precision, high legibility for numbers/prices, and fast daily operations without decorative clutter. Color is used strictly for function."
+  },
+  "typography": {
+    "heading_font": "Chivo",
+    "body_font": "IBM Plex Sans",
+    "rules": {
+      "h1": "text-4xl tracking-tight font-black",
+      "h2": "text-2xl tracking-tight font-bold",
+      "h3": "text-xl font-bold",
+      "body": "text-base leading-relaxed font-medium",
+      "labels": "text-xs tracking-[0.2em] uppercase font-bold text-gray-500",
+      "numbers": "font-mono tabular-nums",
+      "anti_pattern_avoided": "No Inter, Roboto, or generic sans for headings. No centered text by default. Use tabular-nums for all prices and stock quantities."
+    }
+  },
+  "colors": {
+    "backgrounds": {
+      "app": "#F4F5F7",
+      "surface": "#FFFFFF",
+      "surface_alt": "#E5E7EB"
+    },
+    "text": {
+      "primary": "#0A0A0A",
+      "secondary": "#4B5563",
+      "inverse": "#FFFFFF"
+    },
+    "accents": {
+      "primary": "#0033FF",
+      "primary_hover": "#0022CC",
+      "danger": "#FF3B30",
+      "danger_hover": "#D72621",
+      "success": "#00C853",
+      "warning": "#FFCC00"
+    },
+    "borders": {
+      "default": "#D1D5DB",
+      "focus": "#0033FF"
+    },
+    "rules": {
+      "contrast": "Minimum 4.5:1 ratio enforced. APCA preferred.",
+      "accents": "Color is function. Do not use generic gradients. 95% of the UI is monochrome/structural. Primary blue is for main actions (Pay, Save), Red is for destructive/low stock warnings."
+    }
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "p-1, p-2, p-4, p-6, p-8, p-12",
+    "generous_spacing": "Use 2-3x more spacing. Minimum p-6 for container padding. Minimum h-14 for all touch targets.",
+    "grid_strategy": "Mode B: The Control Room Grid (Mobile-First)",
+    "rules": {
+      "containers": "Solid background, 1px subtle border (#D1D5DB), 0 shadow. Sharp edges (rounded-none or max rounded-sm).",
+      "alignment": "Strictly left-aligned content. Asymmetry creates tension. Do not center-everything.",
+      "cashier_layout": "Split screen or sticky bottom sheet on mobile for Cart vs Item Selection.",
+      "dashboard_menu": "Bento-style grid. 2 columns on mobile. Bold typography and icons."
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#0033FF] text-white hover:bg-[#0022CC] h-14 px-8 font-bold tracking-wide rounded-sm transition-colors",
+      "secondary": "bg-transparent border-2 border-[#0A0A0A] text-[#0A0A0A] h-14 px-8 font-bold hover:bg-[#F4F5F7] rounded-sm",
+      "danger": "bg-[#FF3B30] text-white hover:bg-[#D72621] h-14 px-8 font-bold rounded-sm"
+    },
+    "inputs": {
+      "style": "h-14 bg-[#F4F5F7] border-b-2 border-[#D1D5DB] rounded-none px-4 focus:border-[#0033FF] focus:outline-none transition-colors text-base font-medium",
+      "labels": "uppercase text-xs tracking-widest text-[#4B5563] mb-2 block"
+    },
+    "cards_and_lists": {
+      "style": "bg-white border border-[#D1D5DB] p-6 mb-4 rounded-sm hover:-translate-y-1 transition-transform",
+      "inventory_item": "Flex row. Left side: Item Name (Chivo) & Category. Right side: Price & Stock (tabular-nums). If stock < 5, apply red text.",
+      "transaction_item": "Flex row. Left side: Date & Customer. Right side: Total (Green if Paid, Red if Unpaid)."
+    },
+    "navigation": {
+      "header": "Sticky top, bg-white/90 backdrop-blur-xl border-b border-[#D1D5DB] h-16 flex items-center px-4 z-50",
+      "bottom_tab": "Sticky bottom for primary actions in Cashier view (e.g., massive PAY button)."
+    }
+  },
+  "pages_and_features": {
+    "login_register": {
+      "layout": "Full screen split or stacked. Top: Stark workshop image with bg-black/50 overlay. Bottom: Form.",
+      "fields": "Username, Name, Password, Email (Optional)."
+    },
+    "dashboard": {
+      "layout": "Bento grid (Mode B). Large tap targets.",
+      "items": "Kasir (Cashier), Bon/Pencatatan Transaksi, Daftar Barang, Detail Bengkel, Detail Pengguna."
+    },
+    "kasir": {
+      "layout": "List of available items/services + persistent cart summary at bottom.",
+      "features": "Input barang/jasa, quantity, discount, payment method, total calculation, print/download simple receipt. Use large bold numbers for TOTAL."
+    },
+    "bon_transaksi": {
+      "layout": "Data-dense list. Sharp borders.",
+      "features": "Date, customer, items, total, status (Paid/Unpaid), invoice number, notes, mechanic."
+    },
+    "daftar_barang": {
+      "layout": "List with sticky search header.",
+      "features": "Name, category, price, stock, supplier, item code, visual warning for low stock (Signal Red block or icon)."
+    },
+    "detail_pengguna": {
+      "layout": "List with role badges.",
+      "features": "Admin, Kasir, Mekanik. High contrast badges (e.g., Admin = Blue, Kasir = Black, Mekanik = Grey)."
+    }
+  },
+  "media": {
+    "images": [
+      {
+        "category": "auth_background",
+        "url": "https://images.unsplash.com/photo-1756575527484-2839c593ed84?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxjYXIlMjB3b3Jrc2hvcCUyMG1lY2hhbmljJTIwbW9kZXJufGVufDB8fHx8MTc3NjgzNzcwMnww&ixlib=rb-4.1.0&q=85",
+        "description": "Dimly lit mechanic working, overlaid with high-contrast text and solid form."
+      },
+      {
+        "category": "dashboard_header",
+        "url": "https://images.pexels.com/photos/8985462/pexels-photo-8985462.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Well-equipped modern garage, use as abstract header banner with heavy black/40 overlay."
+      }
+    ],
+    "icons": {
+      "library": "phosphor-icons/react",
+      "style": "Duotone or Bold weight. High contrast.",
+      "installation": "yarn add @phosphor-icons/react"
+    }
+  },
+  "testing_attributes": {
+    "rule": "All interactive elements must include data-testid",
+    "examples": [
+      "data-testid='login-submit-button'",
+      "data-testid='cashier-menu-card'",
+      "data-testid='add-item-to-cart-button'",
+      "data-testid='checkout-total-value'",
+      "data-testid='inventory-search-input'"
+    ]
+  },
+  "motion_and_interactions": {
+    "rule": "Minimalist. Snap responses. Function over form.",
+    "hover": "Explicit text color changes on hover (e.g., hover:bg-[#0022CC] hover:text-white). Cards lift slightly (-translate-y-1).",
+    "focus": "High contrast ring focus: focus:ring-2 focus:ring-[#0033FF] focus:outline-none."
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the JSON rules. Do not use generic 'Inter' or 'Roboto' fonts. Import Chivo and IBM Plex Sans via Google Fonts.",
+    "Ensure the app is built mobile-first. Use large tap targets (h-14) since users (mechanics/cashiers) operate in fast-paced physical environments.",
+    "Implement the Swiss grid: sharp corners, solid 1px borders, structural greyscale with stark International Klein Blue (#0033FF) for primary actions.",
+    "Ensure all numbers (stock, prices, totals) use tabular-nums (font-mono) for alignment.",
+    "Always apply 'data-testid' to actionable items and values as specified."
+  ]
+}
