@@ -56,6 +56,11 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - perbaikan UX halaman transaksi: rincian pelanggan kini terbuka inline di kartu yang dipilih
   - header transaksi diringkas menjadi kolom pencarian + ikon cari + ikon filter + ikon muat ulang
   - filter transaksi dipindahkan ke modal/popup agar tampilan mobile lebih ringkas
+  - navigasi footer diubah menjadi 5 tab dengan tab tengah `Menu`
+  - menu tambahan dipindahkan dari dashboard ke tab `Menu`
+  - tab `Menu` kini memuat Detail Pengguna, Detail Bengkel, Pengaturan, Tentang, Backup Data, dan ruang fitur mendatang
+  - dashboard disederhanakan agar fokus pada ringkasan transaksi, omzet hari ini, status stok berkurang, dan transaksi terbaru
+  - backup data JSON tersedia untuk admin melalui endpoint dan layar khusus
 - Seed akun default otomatis saat database kosong:
   - admin / admin123
   - kasir / kasir123
@@ -79,6 +84,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - verifikasi UI filter transaksi, mode edit transaksi, pilih barang inventori, dan hapus barang via preview
   - regression test backend + frontend untuk pembayaran/hutang/ringkasan pelanggan: 18/18 pytest lulus dan UI transaksi pelanggan lulus
   - regression test frontend khusus redesign halaman transaksi lulus untuk toolbar baru, modal filter, dan detail inline pelanggan
+  - regression test backend untuk dashboard + backup data lulus, serta verifikasi frontend untuk 5 tab dan tab Menu berhasil
 
 ## Backlog Prioritas
 
