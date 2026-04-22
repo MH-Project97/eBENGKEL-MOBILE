@@ -101,3 +101,45 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## user_problem_statement: "Aplikasi manajemen bengkel multi-bengkel dan multi-user: owner daftar dengan nama bengkel, user daftar via ID bengkel 18 karakter, data terpisah per bengkel, approval akses karyawan oleh admin/owner, hapus kartu gambar login/dashboard, pindahkan logout ke Menu>Sistem, dan rapikan UI."
+## backend:
+##   - task: "Auth multi-bengkel, approval karyawan, dan isolasi data per bengkel"
+##     implemented: true
+##     working: true
+##     file: "/app/backend/app_main.py"
+##     stuck_count: 0
+##     priority: "high"
+##     needs_retesting: true
+##     status_history:
+##         - working: true
+##           agent: "main"
+##           comment: "Backend ditulis ulang ke model multi-workshop: owner register + workshop baru, employee join via workshop ID 18 karakter, approval pending, switch workshop, item/transaksi/dashboard/backup scoped per workshop. Self-test API lulus untuk owner register, employee pending->approve, create workshop kedua, switch workshop, dan isolasi item antar bengkel."
+## frontend:
+##   - task: "UI auth/dashboard/menu/workshop/users untuk multi-bengkel"
+##     implemented: true
+##     working: true
+##     file: "/app/frontend/app/(auth)/login.tsx"
+##     stuck_count: 0
+##     priority: "high"
+##     needs_retesting: true
+##     status_history:
+##         - working: true
+##           agent: "main"
+##           comment: "UI utama diperbarui: login/register modern tanpa gambar iklan, dashboard header menampilkan nama bengkel + user + role, logout dipindah ke Menu>Sistem, halaman bengkel mendukung switch bengkel + approval karyawan + buat bengkel baru, halaman pengguna menampilkan anggota aktif bengkel. Screenshot preview lulus untuk dashboard, menu, dan halaman bengkel."
+## metadata:
+##   created_by: "main_agent"
+##   version: "1.0"
+##   test_sequence: 1
+##   run_ui: true
+## test_plan:
+##   current_focus:
+##     - "Auth multi-bengkel owner/user dan approval akses"
+##     - "Isolasi data per bengkel"
+##     - "UI dashboard/menu/workshop/users setelah redesign"
+##   stuck_tasks:
+##     - ""
+##   test_all: true
+##   test_priority: "high_first"
+## agent_communication:
+##     - agent: "main"
+##       message: "Silakan uji alur owner register/login, employee join via workshop ID, login pending sebelum approve, approval di halaman bengkel, switch bengkel owner, isolasi item/transaksi per bengkel, serta verifikasi logout di Menu dan hilangnya hero image pada login/dashboard. Kredensial terbaru ada di /app/memory/test_credentials.md."

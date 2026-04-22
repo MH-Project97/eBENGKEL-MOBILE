@@ -3,40 +3,35 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActionButton } from "../components/ActionButton";
-import { DeleteConfirmationCard } from "../components/DeleteConfirmationCard";
-import { FormField } from "../components/FormField";
 import { ScreenShell } from "../components/ScreenShell";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { isManagerRole, roleLabels } from "../lib/role";
 import { colors, spacing, typography } from "../lib/theme";
-import type { Role, User } from "../lib/types";
+import type { WorkshopMember } from "../lib/types";
 
-const roles: Role[] = ["admin", "kasir", "mekanik"];
+const editableRoles = ["admin", "kasir", "mekanik"] as const;
 
 export default function UsersScreen() {
-  const { session, refreshProfile } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const { session } = useAuth();
+  const [users, setUsers] = useState<WorkshopMember[]>([]);
   const [error, setError] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [form, setForm] = useState({
-    username: "",
-    full_name: "",
-    password: "",
-    email: "",
-    role: "kasir" as Role,
-  });
+  const [info, setInfo] = useState("");
 
-  const isAdmin = session?.user.role === "admin";
+  const isManager = isManagerRole(session?.user.role);
 
   const loadUsers = useCallback(async () => {
     if (!session?.token) {
       return;
     }
 
-    const response = await api.getUsers(session.token);
-    setUsers(response);
+    try {
+      const response = await api.getUsers(session.token);
+      setUsers(response);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Gagal memuat data pengguna");
+    }
   }, [session?.token]);
 
   useFocusEffect(
@@ -45,160 +40,69 @@ export default function UsersScreen() {
     }, [loadUsers]),
   );
 
-  const updateRole = async (userId: string, role: Role) => {
+  const updateRole = async (membershipId: string, role: "admin" | "kasir" | "mekanik") => {
     if (!session?.token) {
       return;
     }
 
     try {
       setError("");
-      await api.updateUserRole(session.token, userId, role);
+      await api.updateUserRole(session.token, membershipId, role);
+      setInfo("Role anggota berhasil diperbarui.");
       await loadUsers();
-      await refreshProfile();
     } catch (roleError) {
       setError(roleError instanceof Error ? roleError.message : "Gagal mengubah role");
     }
   };
 
-  const createUser = async () => {
+  const removeAccess = async (membershipId: string) => {
     if (!session?.token) {
       return;
     }
 
     try {
       setError("");
-      if (selectedUserId) {
-        await api.updateUser(session.token, selectedUserId, {
-          username: form.username,
-          full_name: form.full_name,
-          email: form.email || undefined,
-          role: form.role,
-          password: form.password || undefined,
-        });
-      } else {
-        await api.createUser(session.token, {
-          username: form.username,
-          full_name: form.full_name,
-          password: form.password,
-          email: form.email || undefined,
-          role: form.role,
-        });
-      }
-      setSelectedUserId(null);
-      setForm({ username: "", full_name: "", password: "", email: "", role: "kasir" });
+      await api.deleteUser(session.token, membershipId);
+      setInfo("Akses anggota berhasil dihapus.");
       await loadUsers();
-      await refreshProfile();
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Gagal menambah pengguna");
-    }
-  };
-
-  const startEditUser = (user: User) => {
-    setSelectedUserId(user.id);
-    setForm({
-      username: user.username,
-      full_name: user.full_name,
-      password: "",
-      email: user.email ?? "",
-      role: user.role,
-    });
-    setError("");
-  };
-
-  const resetForm = () => {
-    setSelectedUserId(null);
-    setForm({ username: "", full_name: "", password: "", email: "", role: "kasir" });
-    setError("");
-  };
-
-  const deleteUser = async () => {
-    if (!session?.token || !selectedUserId) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      setError("");
-      await api.deleteUser(session.token, selectedUserId);
-      resetForm();
-      await loadUsers();
-      await refreshProfile();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Gagal menghapus pengguna");
-    } finally {
-      setDeleting(false);
+      setError(deleteError instanceof Error ? deleteError.message : "Gagal menghapus akses anggota");
     }
   };
 
   return (
-    <ScreenShell title="Detail Pengguna" subtitle="Kelola akun admin, kasir, dan mekanik dengan role yang tepat." backButton>
+    <ScreenShell title="Detail Pengguna" subtitle="Daftar anggota aktif untuk bengkel yang sedang dipakai. Persetujuan user baru ada di halaman bengkel." backButton>
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Ringkasan akses</Text>
-        <Text style={styles.helperText}>Akun Anda: {session?.user.full_name} • role {session?.user.role}</Text>
-        {!isAdmin ? <Text style={styles.helperText}>Hanya admin yang bisa menambah user dan mengganti role.</Text> : null}
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <Text style={styles.helperText}>Akun Anda: {session?.user.full_name} • {roleLabels[session?.user.role ?? "kasir"]}</Text>
+        <Text style={styles.helperText}>Bengkel aktif: {session?.user.workshop_name}</Text>
+        {info ? <Text style={styles.infoText} testID="users-info-message">{info}</Text> : null}
+        {error ? <Text style={styles.errorText} testID="users-error-message">{error}</Text> : null}
       </SurfaceCard>
 
-      {isAdmin ? (
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>{selectedUserId ? "Edit pengguna" : "Tambah pengguna baru"}</Text>
-          <FormField label="Username" value={form.username} onChangeText={(value) => setForm((current) => ({ ...current, username: value }))} autoCapitalize="none" testID="users-create-username-input" />
-          <FormField label="Nama lengkap" value={form.full_name} onChangeText={(value) => setForm((current) => ({ ...current, full_name: value }))} testID="users-create-name-input" />
-          <FormField label={selectedUserId ? "Password baru (opsional)" : "Password"} value={form.password} onChangeText={(value) => setForm((current) => ({ ...current, password: value }))} secureTextEntry testID="users-create-password-input" />
-          <FormField label="Email (opsional)" value={form.email} onChangeText={(value) => setForm((current) => ({ ...current, email: value }))} autoCapitalize="none" testID="users-create-email-input" />
-          <View style={styles.roleRow}>
-            {roles.map((role) => (
-              <ActionButton
-                key={role}
-                label={role.toUpperCase()}
-                compact
-                onPress={() => setForm((current) => ({ ...current, role }))}
-                variant={form.role === role ? "primary" : "secondary"}
-                testID={`users-create-role-${role}`}
-              />
-            ))}
-          </View>
-          <View style={styles.roleRow}>
-            <ActionButton label={selectedUserId ? "Update pengguna" : "Simpan pengguna"} onPress={() => void createUser()} testID="users-create-submit-button" />
-            <ActionButton label="Reset" onPress={resetForm} variant="secondary" />
-          </View>
-        </SurfaceCard>
-      ) : null}
-
-      {isAdmin && selectedUserId ? (
-        <DeleteConfirmationCard
-          title="Hapus pengguna"
-          description="Hanya admin yang boleh menghapus user. Ketik HAPUS untuk konfirmasi."
-          onCancel={resetForm}
-          onConfirm={deleteUser}
-          loading={deleting}
-          testIDPrefix="users-delete"
-        />
-      ) : null}
-
       {users.map((user) => (
-        <SurfaceCard key={user.id}>
+        <SurfaceCard key={user.membership_id}>
           <Text style={styles.userTitle}>{user.full_name}</Text>
           <Text style={styles.helperText}>@{user.username}</Text>
           <Text style={styles.helperText}>{user.email || "Tanpa email"}</Text>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{user.role.toUpperCase()}</Text>
+            <Text style={styles.roleBadgeText}>{roleLabels[user.role]}</Text>
           </View>
-          {isAdmin ? (
+          {isManager && user.role !== "owner" && user.user_id !== session?.user.id ? (
             <>
               <View style={styles.roleRow}>
-                {roles.map((role) => (
+                {editableRoles.map((role) => (
                   <ActionButton
-                    key={`${user.id}-${role}`}
+                    key={`${user.membership_id}-${role}`}
                     label={role.toUpperCase()}
                     compact
-                    onPress={() => void updateRole(user.id, role)}
+                    onPress={() => void updateRole(user.membership_id, role)}
                     variant={user.role === role ? "primary" : "secondary"}
-                    testID={`users-role-${user.id}-${role}`}
+                    testID={`users-role-${user.membership_id}-${role}`}
                   />
                 ))}
               </View>
-              <ActionButton label="Edit pengguna" onPress={() => startEditUser(user)} variant="secondary" testID={`users-edit-${user.id}`} />
+              <ActionButton label="Hapus akses" onPress={() => void removeAccess(user.membership_id)} variant="secondary" testID={`users-remove-${user.membership_id}`} />
             </>
           ) : null}
         </SurfaceCard>
@@ -224,6 +128,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyBold,
     fontSize: 14,
   },
+  infoText: {
+    color: colors.success,
+    fontFamily: typography.bodyBold,
+    fontSize: 14,
+  },
   roleRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -237,15 +146,15 @@ const styles = StyleSheet.create({
   roleBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.border,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     backgroundColor: colors.surfaceAlt,
+    borderRadius: 999,
   },
   roleBadgeText: {
     color: colors.text,
     fontFamily: typography.bodyBold,
     fontSize: 12,
-    letterSpacing: 1.2,
   },
 });

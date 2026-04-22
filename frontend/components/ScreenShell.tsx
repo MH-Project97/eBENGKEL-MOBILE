@@ -123,10 +123,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerRow: {
-    gap: spacing.md,
+    gap: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   headerTextWrapper: {
-    gap: spacing.sm,
+    gap: 6,
   },
   headerAction: {
     alignSelf: "flex-start",
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.heading,
     fontSize: 30,
-    lineHeight: 34,
+    lineHeight: 36,
   },
   subtitle: {
     color: colors.textMuted,

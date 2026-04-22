@@ -1,9 +1,9 @@
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,7 +17,6 @@ import { ActionButton } from "../../components/ActionButton";
 import { FormField } from "../../components/FormField";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useAuth } from "../../context/AuthContext";
-import { AUTH_HERO } from "../../lib/images";
 import { colors, spacing, typography } from "../../lib/theme";
 
 export default function LoginScreen() {
@@ -50,10 +49,17 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Image source={{ uri: AUTH_HERO }} style={styles.hero} />
         <SurfaceCard style={styles.card}>
-          <Text style={styles.title}>Masuk ke Bengkel</Text>
-          <Text style={styles.subtitle}>Kelola kasir, stok, transaksi, dan tim dari satu aplikasi.</Text>
+          <View style={styles.brandRow} testID="login-brand-block">
+            <View style={styles.logoBadge}>
+              <Ionicons name="construct-outline" size={28} color={colors.surface} />
+            </View>
+            <View style={styles.brandTextWrap}>
+              <Text style={styles.kicker}>Multi bengkel</Text>
+              <Text style={styles.title}>Masuk ke sistem bengkel</Text>
+              <Text style={styles.subtitle}>Pantau cabang, stok, transaksi, dan tim dari satu alur kerja yang rapi.</Text>
+            </View>
+          </View>
           <FormField
             label="Username"
             value={username}
@@ -102,14 +108,30 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: "100%",
   },
-  hero: {
-    width: "100%",
-    height: 210,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   card: {
     gap: spacing.md,
+  },
+  brandRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "flex-start",
+  },
+  logoBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  kicker: {
+    color: colors.accent,
+    fontFamily: typography.bodyBold,
+    fontSize: 12,
   },
   title: {
     color: colors.text,
@@ -132,7 +154,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.xs,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 18,
   },
   demoTitle: {
     color: colors.text,

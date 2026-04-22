@@ -11,6 +11,7 @@ import { SurfaceCard } from "../../components/SurfaceCard";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
+import { isManagerRole } from "../../lib/role";
 import { colors, spacing, typography } from "../../lib/theme";
 import type { InventoryItem } from "../../lib/types";
 
@@ -48,7 +49,7 @@ const sortButtonMeta = {
 export default function InventoryScreen() {
   const { session } = useAuth();
   const { height } = useWindowDimensions();
-  const isAdmin = session?.user.role === "admin";
+  const isAdmin = isManagerRole(session?.user.role);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchDraft, setSearchDraft] = useState("");
   const [searchQuery, setSearchQuery] = useState("");

@@ -1,11 +1,10 @@
 import "react-native-reanimated";
 
-import { Chivo_700Bold, Chivo_900Black } from "@expo-google-fonts/chivo";
+import { Figtree_400Regular, Figtree_500Medium, Figtree_700Bold } from "@expo-google-fonts/figtree";
 import {
-  IBMPlexSans_400Regular,
-  IBMPlexSans_500Medium,
-  IBMPlexSans_700Bold,
-} from "@expo-google-fonts/ibm-plex-sans";
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from "@expo-google-fonts/outfit";
 import { useFonts } from "expo-font";
 import { Stack, usePathname, useRouter } from "expo-router";
 import type { Href } from "expo-router";
@@ -52,11 +51,11 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    ChivoBold: Chivo_700Bold,
-    ChivoBlack: Chivo_900Black,
-    IBMPlexSansRegular: IBMPlexSans_400Regular,
-    IBMPlexSansMedium: IBMPlexSans_500Medium,
-    IBMPlexSansBold: IBMPlexSans_700Bold,
+    OutfitSemiBold: Outfit_600SemiBold,
+    OutfitBold: Outfit_700Bold,
+    FigtreeRegular: Figtree_400Regular,
+    FigtreeMedium: Figtree_500Medium,
+    FigtreeBold: Figtree_700Bold,
   });
 
   if (!fontsLoaded) {

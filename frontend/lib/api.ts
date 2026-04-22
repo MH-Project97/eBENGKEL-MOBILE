@@ -4,35 +4,39 @@ import type {
   AuthResponse,
   DashboardSummary,
   InventoryItem,
+  RegisterResponse,
   TransactionLineInput,
   TransactionRecord,
   User,
+  WorkshopAccess,
+  WorkshopMember,
   WorkshopProfile,
 } from "./types";
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   token?: string;
-  body?: Record<string, unknown>;
+  body?: unknown;
 };
 
 type RegisterPayload = {
+  account_type: "owner" | "employee";
   username: string;
   full_name: string;
   password: string;
   email?: string;
+  workshop_name?: string;
+  workshop_code?: string;
+  requested_role?: "admin" | "kasir" | "mekanik";
 };
 
-type CreateUserPayload = RegisterPayload & {
-  role: User["role"];
-};
-
-type UpdateUserPayload = {
-  username: string;
-  full_name: string;
-  email?: string;
-  role: User["role"];
-  password?: string;
+type WorkshopPayload = {
+  workshop_name: string;
+  owner_name: string;
+  phone: string;
+  address: string;
+  open_hours: string;
+  notes: string;
 };
 
 type ItemPayload = {
@@ -80,6 +84,29 @@ const buildHeaders = (token?: string) => ({
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
 });
 
+function formatApiErrorDetail(detail: unknown) {
+  if (!detail) {
+    return "Terjadi kesalahan";
+  }
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item && typeof item.msg === "string") {
+          return item.msg;
+        }
+        return JSON.stringify(item);
+      })
+      .join(" ");
+  }
+  if (typeof detail === "object" && detail !== null && "msg" in detail && typeof detail.msg === "string") {
+    return detail.msg;
+  }
+  return String(detail);
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
@@ -89,9 +116,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const errorData = (await response.json().catch(() => ({ detail: "Terjadi kesalahan" }))) as {
-      detail?: string;
+      detail?: unknown;
     };
-    throw new Error(errorData.detail ?? "Terjadi kesalahan");
+    throw new Error(formatApiErrorDetail(errorData.detail));
   }
 
   return (await response.json()) as T;
@@ -105,20 +132,47 @@ export const api = {
     }),
 
   register: (payload: RegisterPayload) =>
-    request<AuthResponse>("/auth/register", {
+    request<RegisterResponse>("/auth/register", {
       method: "POST",
       body: payload,
     }),
 
   me: (token: string) => request<User>("/auth/me", { token }),
 
+  switchWorkshop: (token: string, workshopId: string) =>
+    request<AuthResponse>("/auth/switch-workshop", {
+      method: "POST",
+      token,
+      body: { workshop_id: workshopId },
+    }),
+
   getDashboardSummary: (token: string) => request<DashboardSummary>("/dashboard/summary", { token }),
+
+  getWorkshops: (token: string) => request<WorkshopAccess[]>("/workshops", { token }),
+
+  createWorkshop: (token: string, payload: WorkshopPayload) =>
+    request<AuthResponse>("/workshops", {
+      method: "POST",
+      token,
+      body: payload as unknown as Record<string, unknown>,
+    }),
 
   getWorkshop: (token: string) => request<WorkshopProfile>("/workshop", { token }),
 
-  updateWorkshop: (token: string, payload: Omit<WorkshopProfile, "id" | "updated_at">) =>
+  updateWorkshop: (token: string, payload: WorkshopPayload) =>
     request<WorkshopProfile>("/workshop", {
       method: "PUT",
+      token,
+      body: payload,
+    }),
+
+  updateWorkshopMember: (
+    token: string,
+    membershipId: string,
+    payload: { action: "approve" | "remove" | "set-role"; role?: "admin" | "kasir" | "mekanik" },
+  ) =>
+    request<{ message: string }>(`/workshop/members/${membershipId}`, {
+      method: "PATCH",
       token,
       body: payload,
     }),
@@ -187,31 +241,17 @@ export const api = {
       token,
     }),
 
-  getUsers: (token: string) => request<User[]>("/users", { token }),
+  getUsers: (token: string) => request<WorkshopMember[]>("/users", { token }),
 
-  createUser: (token: string, payload: CreateUserPayload) =>
-    request<User>("/users", {
-      method: "POST",
-      token,
-      body: payload as unknown as Record<string, unknown>,
-    }),
-
-  updateUser: (token: string, userId: string, payload: UpdateUserPayload) =>
-    request<User>(`/users/${userId}`, {
-      method: "PUT",
-      token,
-      body: payload as unknown as Record<string, unknown>,
-    }),
-
-  updateUserRole: (token: string, userId: string, role: User["role"]) =>
-    request<User>(`/users/${userId}/role`, {
+  updateUserRole: (token: string, membershipId: string, role: "admin" | "kasir" | "mekanik") =>
+    request<{ message: string }>(`/users/${membershipId}/role`, {
       method: "PATCH",
       token,
       body: { role },
     }),
 
-  deleteUser: (token: string, userId: string) =>
-    request<{ message: string }>(`/users/${userId}`, {
+  deleteUser: (token: string, membershipId: string) =>
+    request<{ message: string }>(`/users/${membershipId}`, {
       method: "DELETE",
       token,
     }),

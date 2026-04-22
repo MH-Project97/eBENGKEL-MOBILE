@@ -1,19 +1,18 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { ActionButton } from "../../components/ActionButton";
 import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
-import { DASHBOARD_HERO } from "../../lib/images";
+import { roleLabels } from "../../lib/role";
 import { colors, spacing, typography } from "../../lib/theme";
 import type { DashboardSummary } from "../../lib/types";
 
 export default function DashboardScreen() {
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,11 +38,22 @@ export default function DashboardScreen() {
 
   return (
     <ScreenShell
-      title={`Halo, ${session?.user.full_name ?? "Tim Bengkel"}`}
-      subtitle="Pantau aktivitas harian bengkel dengan tampilan cepat dan rapi."
-      headerAction={<ActionButton label="Keluar" compact onPress={() => void signOut()} variant="secondary" testID="logout-button" />}
+      title={session?.user.workshop_name ?? "Bengkel Anda"}
+      subtitle={`${session?.user.full_name ?? "Pengguna"} • ${roleLabels[session?.user.role ?? "kasir"]}`}
     >
-      <Image source={{ uri: DASHBOARD_HERO }} style={styles.hero} />
+      <SurfaceCard>
+        <Text style={styles.sectionTitle}>Workshop aktif</Text>
+        <View style={styles.identityRow}>
+          <View style={styles.identityBox} testID="dashboard-workshop-code-box">
+            <Text style={styles.identityLabel}>ID Bengkel</Text>
+            <Text style={styles.identityValue}>{session?.user.workshop_code ?? "-"}</Text>
+          </View>
+          <View style={styles.identityBox} testID="dashboard-workshop-count-box">
+            <Text style={styles.identityLabel}>Akses Bengkel</Text>
+            <Text style={styles.identityValue}>{session?.user.workshops.length ?? 0}</Text>
+          </View>
+        </View>
+      </SurfaceCard>
 
       {loading ? (
         <SurfaceCard>
@@ -107,11 +117,28 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    width: "100%",
-    height: 160,
-    borderWidth: 1,
-    borderColor: colors.border,
+  identityRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  identityBox: {
+    flex: 1,
+    minWidth: 140,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 18,
+    padding: spacing.md,
+    gap: 6,
+  },
+  identityLabel: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyBold,
+    fontSize: 12,
+  },
+  identityValue: {
+    color: colors.text,
+    fontFamily: typography.headingBold,
+    fontSize: 18,
   },
   statsGrid: {
     flexDirection: "row",

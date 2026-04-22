@@ -71,10 +71,11 @@ export function ActionButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 56,
-    borderWidth: 2,
+    minHeight: 52,
+    borderWidth: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
+    borderRadius: 16,
   },
   compact: {
     minHeight: 44,
@@ -85,8 +86,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   secondary: {
-    backgroundColor: "transparent",
-    borderColor: colors.black,
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
   },
   danger: {
     backgroundColor: colors.danger,
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   label: {
     color: colors.text,
     fontFamily: typography.bodyBold,
-    fontSize: 15,
+    fontSize: 14,
   },
   primaryLabel: {
     color: colors.surface,

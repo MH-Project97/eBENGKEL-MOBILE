@@ -12,6 +12,7 @@ import { SurfaceCard } from "../../components/SurfaceCard";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
+import { isManagerRole } from "../../lib/role";
 import { colors, spacing, typography } from "../../lib/theme";
 import type { TransactionRecord } from "../../lib/types";
 
@@ -25,7 +26,7 @@ const defaultFilters = {
 export default function TransactionsScreen() {
   const { session } = useAuth();
   const router = useRouter();
-  const isAdmin = session?.user.role === "admin";
+  const isAdmin = isManagerRole(session?.user.role);
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);

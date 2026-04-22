@@ -1,0 +1,77 @@
+{
+  "summary": "Regression backend+frontend for multi-bengkel multi-user flows completed. Core owner login, employee pending->approval, workshop creation/switch, inventory isolation, dashboard/menu/workshop/users UI checks passed. One critical register bug and multiple auth-hardening gaps remain.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "Employee registration without email returns 500 Internal Server Error (DuplicateKeyError on users.email null). Expected validation error or successful optional-email handling.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/auth/login",
+        "issue": "Auth playbook requirement not met: app does not set access/refresh httpOnly auth cookies; response only carries bearer token in JSON (observed set-cookie is Cloudflare __cf_bm, not app session cookie).",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "CORS middleware",
+        "issue": "allow_credentials=true is combined with allow_origins=['*']; this is insecure/invalid for credentialed browser flows and violates explicit-origin requirement.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "POST /api/auth/login",
+        "issue": "No brute-force lockout after 5 failed attempts; attempts 1..6 all returned 401 without lockout behavior.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "Auth bootstrap/seed",
+        "issue": "seed_admin password-sync behavior is not present (requirement in auth playbook could not be validated because seed_admin flow is absent)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_multi_workshop_regression.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/artifacts_iter8_ui/multi_workshop_ui_success.png",
+    "/app/test_reports/artifacts_iter8_ui/multi_workshop_ui_users.png",
+    "/app/test_reports/artifacts_iter8_ui/workshop_screen_check.png",
+    "/app/test_reports/artifacts_iter8_ui/workshop_approval_ui.png",
+    "/root/.emergent/automation_output/20260422_133744/console_20260422_133744.log",
+    "/root/.emergent/automation_output/20260422_133819/console_20260422_133819.log",
+    "/root/.emergent/automation_output/20260422_133839/console_20260422_133839.log",
+    "/root/.emergent/automation_output/20260422_133910/console_20260422_133910.log"
+  ],
+  "action_items": [
+    "Fix register flow ordering: validate employee workshop_code before inserting user, and avoid storing email field when null (or adjust index strategy) to stop 500 errors.",
+    "Implement auth cookie flow (httpOnly access/refresh cookies) if required by playbook, or align playbook/spec with token-in-body approach.",
+    "Replace wildcard CORS origin with explicit allowed origin(s) when credentials are enabled.",
+    "Add login attempt tracking + lockout policy after 5 failed logins.",
+    "Add/implement seed_admin idempotent password update logic if this remains a requirement.",
+    "Align frontend env usage with policy (EXPO_BACKEND_URL key) to avoid config drift."
+  ],
+  "critical_code_review_comments": [
+    "register_user inserts into users collection before employee workshop validation, creating partial-state risk and enabling null-email duplicate key crashes.",
+    "app_main.py uses default fallback values for DB_NAME and JWT_SECRET instead of strict fail-fast env usage.",
+    "frontend/lib/api.ts reads EXPO_PUBLIC_BACKEND_URL/expo extra, while policy states EXPO_BACKEND_URL should be the source-of-truth key."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_multi_workshop_regression.py",
+    "/app/test_reports/iteration_8.json"
+  ],
+  "success_rate": {
+    "backend": "83% (5/6 tests passed in this run)",
+    "frontend": "92% (critical requested UI flows passed; one intermediate selector timeout resolved on rerun)"
+  },
+  "seed_data_creation": "Created temporary TEST_* workshops/items and temporary employee accounts for pending/approval flow validation.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Multi-workshop UI flow is stable on mobile viewport: dashboard header context, logout in Menu>Sistem, workshop code/switcher, and users role/remove controls are rendered. Approval UI was validated by creating a pending employee and approving from workshop screen. One backend blocker remains in auth/register when email is omitted.",
+  "rca_of_issue": "RCA-1: /api/auth/register 500 is caused by Mongo unique index on users.email receiving repeated null values because code inserts user with email=None before validating employee workshop data; DuplicateKeyError bubbles up. Repro: POST /api/auth/register with account_type=employee, valid/invalid workshop_code, and omitted email -> 500 after first null-email user exists. Mitigation: validate first, then insert; omit email key when empty (or use partial unique index). RCA-2: Auth hardening gaps observed by playbook checks (no app auth cookies, wildcard+credentials CORS, no brute-force lockout)."
+}

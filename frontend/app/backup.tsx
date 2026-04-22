@@ -6,11 +6,12 @@ import { ScreenShell } from "../components/ScreenShell";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { isManagerRole } from "../lib/role";
 import { colors, typography } from "../lib/theme";
 
 export default function BackupScreen() {
   const { session } = useAuth();
-  const isAdmin = session?.user.role === "admin";
+  const isAdmin = isManagerRole(session?.user.role);
   const [message, setMessage] = useState("");
   const [counts, setCounts] = useState<{ users?: number; inventory_items?: number; transactions?: number }>({});
 
@@ -49,8 +50,8 @@ export default function BackupScreen() {
     <ScreenShell title="Backup Data" subtitle="Ekspor data pengguna, barang, transaksi, dan profil bengkel dalam format JSON." backButton>
       <SurfaceCard>
         <Text style={styles.title}>Akses Backup</Text>
-        <Text style={styles.body}>Hanya admin yang dapat membuat backup data lengkap untuk keamanan operasional bengkel.</Text>
-        {isAdmin ? <ActionButton label="Buat Backup JSON" onPress={() => void exportBackup()} testID="backup-export-button" /> : <Text style={styles.warning}>Masuk sebagai admin untuk menggunakan fitur backup.</Text>}
+        <Text style={styles.body}>Hanya owner atau admin yang dapat membuat backup data lengkap untuk keamanan operasional bengkel.</Text>
+        {isAdmin ? <ActionButton label="Buat Backup JSON" onPress={() => void exportBackup()} testID="backup-export-button" /> : <Text style={styles.warning}>Masuk sebagai owner/admin untuk menggunakan fitur backup.</Text>}
         {message ? <Text style={styles.success} testID="backup-success-message">{message}</Text> : null}
       </SurfaceCard>
       <SurfaceCard>

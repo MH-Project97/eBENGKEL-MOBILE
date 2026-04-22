@@ -1,16 +1,17 @@
 export const colors = {
-  background: "#F4F5F7",
+  background: "#F8FAFC",
   surface: "#FFFFFF",
-  surfaceAlt: "#E5E7EB",
-  text: "#0A0A0A",
-  textMuted: "#4B5563",
-  border: "#D1D5DB",
-  primary: "#0033FF",
-  primaryDark: "#0022CC",
-  danger: "#FF3B30",
-  success: "#00C853",
-  warning: "#FFCC00",
-  black: "#0A0A0A",
+  surfaceAlt: "#F1F5F9",
+  text: "#0F172A",
+  textMuted: "#64748B",
+  border: "#E2E8F0",
+  primary: "#0F172A",
+  primaryDark: "#020617",
+  accent: "#2563EB",
+  danger: "#EF4444",
+  success: "#10B981",
+  warning: "#F59E0B",
+  black: "#0F172A",
 };
 
 export const spacing = {
@@ -23,9 +24,9 @@ export const spacing = {
 };
 
 export const typography = {
-  heading: "ChivoBlack",
-  headingBold: "ChivoBold",
-  body: "IBMPlexSansRegular",
-  bodyMedium: "IBMPlexSansMedium",
-  bodyBold: "IBMPlexSansBold",
+  heading: "OutfitSemiBold",
+  headingBold: "OutfitBold",
+  body: "FigtreeRegular",
+  bodyMedium: "FigtreeMedium",
+  bodyBold: "FigtreeBold",
 };
