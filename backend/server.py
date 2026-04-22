@@ -168,6 +168,7 @@ class TransactionCreateRequest(BaseModel):
     payment_method: Literal["tunai", "transfer", "kartu", "qris"] = "tunai"
     status: Literal["paid", "unpaid"] = "paid"
     discount: float = Field(default=0, ge=0)
+    amount_paid: float = Field(default=0, ge=0)
     invoice_number: Optional[str] = None
     lines: list[TransactionLineInput] = Field(default_factory=list)
 
@@ -184,6 +185,10 @@ class TransactionRecord(BaseModel):
     discount: float
     subtotal: float
     total: float
+    amount_paid: float = 0
+    payment_state: Literal["hutang", "lunas", "kembalian"] = "hutang"
+    balance_due: float = 0
+    change_due: float = 0
     lines: list[TransactionLine]
     created_by_name: str
     created_by_role: str
@@ -323,6 +328,54 @@ async def apply_inventory_stock_updates(stock_updates: dict[str, int], timestamp
             {"id": item_id},
             {"$set": {"stock": new_stock, "updated_at": timestamp}},
         )
+
+
+def derive_payment_fields(total: float, amount_paid: float) -> dict:
+    normalized_paid = round(amount_paid, 2)
+    if normalized_paid < total:
+        return {
+            "status": "unpaid",
+            "payment_state": "hutang",
+            "amount_paid": normalized_paid,
+            "balance_due": round(total - normalized_paid, 2),
+            "change_due": 0.0,
+        }
+    if normalized_paid > total:
+        return {
+            "status": "paid",
+            "payment_state": "kembalian",
+            "amount_paid": normalized_paid,
+            "balance_due": 0.0,
+            "change_due": round(normalized_paid - total, 2),
+        }
+    return {
+        "status": "paid",
+        "payment_state": "lunas",
+        "amount_paid": normalized_paid,
+        "balance_due": 0.0,
+        "change_due": 0.0,
+    }
+
+
+def normalize_transaction_document(document: dict) -> dict:
+    normalized = {**document}
+    total = round(float(normalized.get("total", 0)), 2)
+    if "amount_paid" not in normalized:
+        if normalized.get("status") == "paid":
+            normalized["amount_paid"] = total
+            normalized["payment_state"] = "lunas"
+            normalized["balance_due"] = 0.0
+            normalized["change_due"] = 0.0
+        else:
+            normalized["amount_paid"] = 0.0
+            normalized["payment_state"] = "hutang"
+            normalized["balance_due"] = total
+            normalized["change_due"] = 0.0
+        return normalized
+
+    payment_fields = derive_payment_fields(total, float(normalized.get("amount_paid", 0)))
+    normalized.update(payment_fields)
+    return normalized
 
 
 async def get_current_user(
@@ -479,7 +532,7 @@ async def get_dashboard_summary(current_user: dict = Depends(get_current_user)) 
         total_transactions=total_transactions,
         today_revenue=today_revenue,
         low_stock_items=[InventoryItem(**item) for item in low_stock_items_raw],
-        recent_transactions=[TransactionRecord(**item) for item in recent_transactions_raw],
+        recent_transactions=[TransactionRecord(**normalize_transaction_document(item)) for item in recent_transactions_raw],
     )
 
 
@@ -717,7 +770,7 @@ async def list_transactions(
         filters["mechanic_name"] = {"$regex": mechanic_name.strip(), "$options": "i"}
 
     transactions = await db.transactions.find(filters, {"_id": 0}).sort("created_at", -1).to_list(300)
-    return [TransactionRecord(**transaction) for transaction in transactions]
+    return [TransactionRecord(**normalize_transaction_document(transaction)) for transaction in transactions]
 
 
 @api_router.get("/transactions/{transaction_id}", response_model=TransactionRecord)
@@ -728,7 +781,7 @@ async def get_transaction(
     transaction = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
-    return TransactionRecord(**transaction)
+    return TransactionRecord(**normalize_transaction_document(transaction))
 
 
 @api_router.post("/transactions", response_model=TransactionRecord)
@@ -743,6 +796,7 @@ async def create_transaction(
 
     total = round(max(subtotal - payload.discount, 0), 2)
     timestamp = now_iso()
+    payment_fields = derive_payment_fields(total, payload.amount_paid)
     transaction = TransactionRecord(
         id=str(uuid.uuid4()),
         invoice_number=(payload.invoice_number or generate_invoice_number()).strip(),
@@ -751,10 +805,14 @@ async def create_transaction(
         mechanic_name=payload.mechanic_name.strip(),
         notes=payload.notes.strip(),
         payment_method=payload.payment_method,
-        status=payload.status,
+        status=payment_fields["status"],
         discount=round(payload.discount, 2),
         subtotal=round(subtotal, 2),
         total=total,
+        amount_paid=payment_fields["amount_paid"],
+        payment_state=payment_fields["payment_state"],
+        balance_due=payment_fields["balance_due"],
+        change_due=payment_fields["change_due"],
         lines=transaction_lines,
         created_by_name=current_user["full_name"],
         created_by_role=current_user["role"],
@@ -786,6 +844,7 @@ async def update_transaction(
     )
     total = round(max(subtotal - payload.discount, 0), 2)
     timestamp = now_iso()
+    payment_fields = derive_payment_fields(total, payload.amount_paid)
     updated_transaction = TransactionRecord(
         id=transaction_id,
         invoice_number=(payload.invoice_number or existing_transaction["invoice_number"]).strip(),
@@ -794,10 +853,14 @@ async def update_transaction(
         mechanic_name=payload.mechanic_name.strip(),
         notes=payload.notes.strip(),
         payment_method=payload.payment_method,
-        status=payload.status,
+        status=payment_fields["status"],
         discount=round(payload.discount, 2),
         subtotal=subtotal,
         total=total,
+        amount_paid=payment_fields["amount_paid"],
+        payment_state=payment_fields["payment_state"],
+        balance_due=payment_fields["balance_due"],
+        change_due=payment_fields["change_due"],
         lines=transaction_lines,
         created_by_name=existing_transaction["created_by_name"],
         created_by_role=existing_transaction["created_by_role"],

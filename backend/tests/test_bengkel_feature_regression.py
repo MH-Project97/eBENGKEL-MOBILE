@@ -69,12 +69,16 @@ def read_item(api_client, headers, item_id: str) -> dict:
 
 
 def create_transaction(api_client, headers, item_id: str, item_name: str, quantity: int, status: str, mechanic_name: str) -> dict:
+    unit_price = 10000
+    subtotal = unit_price * quantity
+    amount_paid = subtotal if status == "paid" else 0
     payload = {
         "customer_name": "TEST Customer",
         "mechanic_name": mechanic_name,
         "notes": "TEST transaksi",
         "payment_method": "tunai",
         "status": status,
+        "amount_paid": amount_paid,
         "discount": 0,
         "lines": [
             {
@@ -82,7 +86,7 @@ def create_transaction(api_client, headers, item_id: str, item_name: str, quanti
                 "type": "barang",
                 "name": item_name,
                 "quantity": quantity,
-                "unit_price": 10000,
+                "unit_price": unit_price,
             }
         ],
     }

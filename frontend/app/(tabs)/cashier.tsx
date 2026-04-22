@@ -18,7 +18,6 @@ type CartLine = TransactionLineInput & {
 };
 
 const paymentOptions = ["tunai", "transfer", "kartu", "qris"] as const;
-const statusOptions = ["paid", "unpaid"] as const;
 
 export default function CashierScreen() {
   const { session } = useAuth();
@@ -32,8 +31,8 @@ export default function CashierScreen() {
   const [mechanicName, setMechanicName] = useState("");
   const [notes, setNotes] = useState("");
   const [discount, setDiscount] = useState("0");
+  const [amountPaid, setAmountPaid] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState<(typeof paymentOptions)[number]>("tunai");
-  const [status, setStatus] = useState<(typeof statusOptions)[number]>("paid");
   const [serviceName, setServiceName] = useState("");
   const [servicePrice, setServicePrice] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -69,8 +68,8 @@ export default function CashierScreen() {
       setMechanicName(transaction.mechanic_name);
       setNotes(transaction.notes);
       setDiscount(String(transaction.discount));
+      setAmountPaid(String(transaction.amount_paid));
       setPaymentMethod(transaction.payment_method as (typeof paymentOptions)[number]);
-      setStatus(transaction.status as (typeof statusOptions)[number]);
       setCart(
         transaction.lines.map((line, index) => ({
           key: line.item_id ? `barang-${line.item_id}` : `jasa-${index}-${transaction.id}`,
@@ -83,7 +82,7 @@ export default function CashierScreen() {
       );
       setReceipt(null);
     } catch (transactionError) {
-      setError(transactionError instanceof Error ? transactionError.message : "Gagal memuat transaksi")
+      setError(transactionError instanceof Error ? transactionError.message : "Gagal memuat transaksi");
     } finally {
       setLoadingEditData(false);
     }
@@ -102,6 +101,10 @@ export default function CashierScreen() {
     [cart],
   );
   const total = Math.max(subtotal - Number(discount || 0), 0);
+  const paidAmount = Number(amountPaid || 0);
+  const balanceDue = Math.max(total - paidAmount, 0);
+  const changeDue = Math.max(paidAmount - total, 0);
+  const paymentStateLabel = balanceDue > 0 ? "Masih hutang" : changeDue > 0 ? "Ada kembalian" : "Lunas";
 
   const addInventoryItem = (item: InventoryItem) => {
     setCart((current) => {
@@ -172,7 +175,10 @@ export default function CashierScreen() {
         <p>Subtotal: ${formatCurrency(transaction.subtotal)}</p>
         <p>Diskon: ${formatCurrency(transaction.discount)}</p>
         <h2>Total: ${formatCurrency(transaction.total)}</h2>
-        <p>Status: ${transaction.status}</p>
+        <p>Dibayar: ${formatCurrency(transaction.amount_paid)}</p>
+        <p>Sisa hutang: ${formatCurrency(transaction.balance_due)}</p>
+        <p>Kembalian: ${formatCurrency(transaction.change_due)}</p>
+        <p>Status pembayaran: ${transaction.payment_state}</p>
         <p>Metode bayar: ${transaction.payment_method}</p>
       </body>
     </html>
@@ -196,7 +202,7 @@ export default function CashierScreen() {
     }
 
     await Share.share({
-      message: `Bon ${receipt.invoice_number}\nTotal ${formatCurrency(receipt.total)}\nPelanggan: ${receipt.customer_name || "Pelanggan umum"}`,
+      message: `Bon ${receipt.invoice_number}\nTotal ${formatCurrency(receipt.total)}\nDibayar ${formatCurrency(receipt.amount_paid)}\nSisa hutang ${formatCurrency(receipt.balance_due)}`,
     });
   };
 
@@ -236,13 +242,15 @@ export default function CashierScreen() {
     try {
       setSubmitting(true);
       setError("");
+      const derivedStatus: "paid" | "unpaid" = paidAmount >= total ? "paid" : "unpaid";
       const payload = {
         customer_name: customerName,
         mechanic_name: mechanicName,
         notes,
         payment_method: paymentMethod,
-        status,
+        status: derivedStatus,
         discount: Number(discount || 0),
+        amount_paid: paidAmount,
         lines: cart.map(({ item_id, type, name, quantity, unit_price }) => ({
           item_id,
           type,
@@ -251,17 +259,19 @@ export default function CashierScreen() {
           unit_price,
         })),
       };
+
       const response = editIdParam
         ? await api.updateTransaction(session.token, editIdParam, payload)
         : await api.createTransaction(session.token, payload);
+
       setReceipt(response);
       setCart([]);
       setCustomerName("");
       setMechanicName("");
       setNotes("");
       setDiscount("0");
+      setAmountPaid("0");
       setPaymentMethod("tunai");
-      setStatus("paid");
       if (editIdParam) {
         router.replace("/cashier" as Href);
       }
@@ -274,11 +284,11 @@ export default function CashierScreen() {
   };
 
   return (
-    <ScreenShell title="Kasir" subtitle="Tambah barang, jasa, diskon, lalu simpan bon transaksi.">
+    <ScreenShell title="Kasir" subtitle="Tambah barang, jasa, diskon, pembayaran, lalu simpan bon transaksi.">
       {isEditMode ? (
         <SurfaceCard>
           <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
-          <Text style={styles.helperText}>Perubahan transaksi akan otomatis menyesuaikan stok barang.</Text>
+          <Text style={styles.helperText}>Perubahan transaksi akan otomatis menyesuaikan stok dan status pembayaran.</Text>
           <ActionButton label="Batal edit" onPress={() => router.replace("/transactions" as Href)} variant="secondary" />
         </SurfaceCard>
       ) : null}
@@ -293,13 +303,8 @@ export default function CashierScreen() {
         <Text style={styles.sectionTitle}>Informasi transaksi</Text>
         <FormField label="Nama pelanggan" value={customerName} onChangeText={setCustomerName} testID="cashier-customer-input" />
         <FormField label="Nama mekanik" value={mechanicName} onChangeText={setMechanicName} testID="cashier-mechanic-input" />
-        <FormField
-          label="Diskon"
-          value={discount}
-          onChangeText={setDiscount}
-          keyboardType="numeric"
-          testID="cashier-discount-input"
-        />
+        <FormField label="Diskon" value={discount} onChangeText={setDiscount} keyboardType="numeric" testID="cashier-discount-input" />
+        <FormField label="Jumlah pembayaran" value={amountPaid} onChangeText={setAmountPaid} keyboardType="numeric" testID="cashier-amount-paid-input" />
         <FormField label="Catatan" value={notes} onChangeText={setNotes} multiline testID="cashier-notes-input" />
         <View style={styles.optionGroup}>
           <Text style={styles.optionLabel}>Metode bayar</Text>
@@ -316,32 +321,18 @@ export default function CashierScreen() {
             ))}
           </View>
         </View>
-        <View style={styles.optionGroup}>
-          <Text style={styles.optionLabel}>Status</Text>
-          <View style={styles.optionRow}>
-            {statusOptions.map((option) => (
-              <ActionButton
-                key={option}
-                label={option === "paid" ? "LUNAS" : "BELUM LUNAS"}
-                compact
-                onPress={() => setStatus(option)}
-                variant={status === option ? "primary" : "secondary"}
-                testID={`payment-status-${option}`}
-              />
-            ))}
-          </View>
+        <View style={styles.paymentPreviewCard}>
+          <Text style={styles.optionLabel}>Ringkasan pembayaran</Text>
+          <Text style={styles.paymentStateText}>{paymentStateLabel}</Text>
+          <Text style={styles.helperText}>Dibayar: {formatCurrency(paidAmount)}</Text>
+          <Text style={styles.helperText}>Sisa hutang: {formatCurrency(balanceDue)}</Text>
+          <Text style={styles.helperText}>Kembalian: {formatCurrency(changeDue)}</Text>
         </View>
       </SurfaceCard>
 
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Pilih barang</Text>
-        <FormField
-          label="Cari barang"
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Cari nama, kategori, supplier, atau kode barang"
-          testID="inventory-search-input"
-        />
+        <FormField label="Cari barang" value={search} onChangeText={setSearch} placeholder="Cari nama, kategori, supplier, atau kode barang" testID="inventory-search-input" />
         <ActionButton label="Muat barang" compact onPress={() => void loadInventory()} variant="secondary" testID="cashier-load-items-button" />
         {inventoryItems.length === 0 ? (
           <Text style={styles.helperText}>Belum ada barang. Tambahkan dulu dari menu daftar barang.</Text>
@@ -350,18 +341,11 @@ export default function CashierScreen() {
             <View key={item.id} style={styles.listRow}>
               <View style={styles.flexOne}>
                 <Text style={styles.itemTitle}>{item.name}</Text>
-                <Text style={styles.helperText}>
-                  {item.category} • {item.item_code} • stok {item.stock}
-                </Text>
+                <Text style={styles.helperText}>{item.category} • {item.item_code} • stok {item.stock}</Text>
               </View>
               <View style={styles.actionStack}>
                 <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
-                <ActionButton
-                  label="Tambah"
-                  compact
-                  onPress={() => addInventoryItem(item)}
-                  testID={`add-item-to-cart-button-${item.id}`}
-                />
+                <ActionButton label="Tambah" compact onPress={() => addInventoryItem(item)} testID={`add-item-to-cart-button-${item.id}`} />
               </View>
             </View>
           ))
@@ -371,13 +355,7 @@ export default function CashierScreen() {
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Tambah jasa manual</Text>
         <FormField label="Nama jasa" value={serviceName} onChangeText={setServiceName} testID="cashier-service-name-input" />
-        <FormField
-          label="Harga jasa"
-          value={servicePrice}
-          onChangeText={setServicePrice}
-          keyboardType="numeric"
-          testID="cashier-service-price-input"
-        />
+        <FormField label="Harga jasa" value={servicePrice} onChangeText={setServicePrice} keyboardType="numeric" testID="cashier-service-price-input" />
         <ActionButton label="Tambah jasa ke keranjang" onPress={addService} variant="secondary" testID="cashier-add-service-button" />
       </SurfaceCard>
 
@@ -410,8 +388,20 @@ export default function CashierScreen() {
           <Text style={styles.summaryValue}>{formatCurrency(Number(discount || 0))}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.totalLabel}>Total bayar</Text>
+          <Text style={styles.totalLabel}>Total transaksi</Text>
           <Text style={styles.totalValue} testID="checkout-total-value">{formatCurrency(total)}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Dibayar</Text>
+          <Text style={styles.summaryValue}>{formatCurrency(paidAmount)}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Sisa hutang</Text>
+          <Text style={styles.summaryValue}>{formatCurrency(balanceDue)}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Kembalian</Text>
+          <Text style={styles.summaryValue}>{formatCurrency(changeDue)}</Text>
         </View>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <ActionButton
@@ -426,12 +416,12 @@ export default function CashierScreen() {
         <SurfaceCard>
           <Text style={styles.sectionTitle}>Bon terbaru</Text>
           <Text style={styles.itemTitle}>{receipt.invoice_number}</Text>
-          <Text style={styles.helperText}>Total {formatCurrency(receipt.total)} • {receipt.status}</Text>
+          <Text style={styles.helperText}>Total {formatCurrency(receipt.total)} • {receipt.payment_state}</Text>
+          <Text style={styles.helperText}>Dibayar {formatCurrency(receipt.amount_paid)}</Text>
+          <Text style={styles.helperText}>Sisa hutang {formatCurrency(receipt.balance_due)} • Kembalian {formatCurrency(receipt.change_due)}</Text>
           <View style={styles.optionRow}>
             <ActionButton label="Cetak bon" onPress={() => void shareReceipt()} variant="secondary" />
-            {Platform.OS === "web" ? (
-              <ActionButton label="Unduh HTML" onPress={downloadReceipt} />
-            ) : null}
+            {Platform.OS === "web" ? <ActionButton label="Unduh HTML" onPress={downloadReceipt} /> : null}
           </View>
         </SurfaceCard>
       ) : null}
@@ -459,6 +449,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
+  },
+  paymentPreviewCard: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  paymentStateText: {
+    color: colors.primary,
+    fontFamily: typography.headingBold,
+    fontSize: 18,
   },
   listRow: {
     flexDirection: "row",

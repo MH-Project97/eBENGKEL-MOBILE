@@ -60,9 +60,13 @@ export type TransactionRecord = {
   notes: string;
   payment_method: string;
   status: string;
+  payment_state: "hutang" | "lunas" | "kembalian";
   discount: number;
   subtotal: number;
   total: number;
+  amount_paid: number;
+  balance_due: number;
+  change_due: number;
   lines: TransactionLine[];
   created_by_name: string;
   created_by_role: string;

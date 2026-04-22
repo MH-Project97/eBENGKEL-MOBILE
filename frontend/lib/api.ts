@@ -52,6 +52,7 @@ type TransactionPayload = {
   payment_method: "tunai" | "transfer" | "kartu" | "qris";
   status: "paid" | "unpaid";
   discount: number;
+  amount_paid: number;
   lines: TransactionLineInput[];
 };
 
