@@ -1,152 +1,83 @@
 {
-  "project_metadata": {
-    "name": "Bengkel Management App",
-    "type": "mobile_web_app",
-    "framework": "Expo React Native (Web/Mobile)",
-    "primary_persona": "E1 (The Anti-AI Designer)"
-  },
-  "theme_and_archetype": {
-    "theme": "Light",
-    "archetype": "4 (Swiss & High-Contrast)",
-    "rationale": "Authority, clarity, and function-first. A workshop app demands absolute precision, high legibility for numbers/prices, and fast daily operations without decorative clutter. Color is used strictly for function."
+  "theme": "Light",
+  "archetype": "Archetype 4: Swiss & High-Contrast (Adapted for Modern Minimal POS)",
+  "colors": {
+    "primary": "#0F172A",
+    "secondary": "#F8FAFC",
+    "accent": "#2563EB",
+    "success": "#10B981",
+    "destructive": "#EF4444",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "text_main": "#0F172A",
+    "text_muted": "#64748B"
   },
   "typography": {
-    "heading_font": "Chivo",
-    "body_font": "IBM Plex Sans",
-    "rules": {
-      "h1": "text-4xl tracking-tight font-black",
-      "h2": "text-2xl tracking-tight font-bold",
-      "h3": "text-xl font-bold",
-      "body": "text-base leading-relaxed font-medium",
-      "labels": "text-xs tracking-[0.2em] uppercase font-bold text-gray-500",
-      "numbers": "font-mono tabular-nums",
-      "anti_pattern_avoided": "No Inter, Roboto, or generic sans for headings. No centered text by default. Use tabular-nums for all prices and stock quantities."
+    "heading_font": "Outfit",
+    "body_font": "Figtree",
+    "hierarchy": {
+      "h1": "text-3xl font-semibold tracking-tight",
+      "h2": "text-2xl font-semibold tracking-tight",
+      "h3": "text-xl font-medium",
+      "body": "text-base font-normal text-slate-600",
+      "small": "text-sm text-slate-500"
     }
   },
-  "colors": {
-    "backgrounds": {
-      "app": "#F4F5F7",
-      "surface": "#FFFFFF",
-      "surface_alt": "#E5E7EB"
-    },
-    "text": {
-      "primary": "#0A0A0A",
-      "secondary": "#4B5563",
-      "inverse": "#FFFFFF"
-    },
-    "accents": {
-      "primary": "#0033FF",
-      "primary_hover": "#0022CC",
-      "danger": "#FF3B30",
-      "danger_hover": "#D72621",
-      "success": "#00C853",
-      "warning": "#FFCC00"
-    },
-    "borders": {
-      "default": "#D1D5DB",
-      "focus": "#0033FF"
-    },
-    "rules": {
-      "contrast": "Minimum 4.5:1 ratio enforced. APCA preferred.",
-      "accents": "Color is function. Do not use generic gradients. 95% of the UI is monochrome/structural. Primary blue is for main actions (Pay, Save), Red is for destructive/low stock warnings."
-    }
-  },
-  "layout_and_spacing": {
-    "spacing_scale": "p-1, p-2, p-4, p-6, p-8, p-12",
-    "generous_spacing": "Use 2-3x more spacing. Minimum p-6 for container padding. Minimum h-14 for all touch targets.",
-    "grid_strategy": "Mode B: The Control Room Grid (Mobile-First)",
-    "rules": {
-      "containers": "Solid background, 1px subtle border (#D1D5DB), 0 shadow. Sharp edges (rounded-none or max rounded-sm).",
-      "alignment": "Strictly left-aligned content. Asymmetry creates tension. Do not center-everything.",
-      "cashier_layout": "Split screen or sticky bottom sheet on mobile for Cart vs Item Selection.",
-      "dashboard_menu": "Bento-style grid. 2 columns on mobile. Bold typography and icons."
-    }
+  "layout": {
+    "spacing": "Generous spacing. Screen padding p-4 or p-6. Container gap-4 to gap-6.",
+    "border_radius": "rounded-2xl for main cards, rounded-xl for buttons and inputs.",
+    "shadows": "Minimalist. shadow-sm for cards, shadow-md for sticky header or floating elements.",
+    "grid": "Mobile-first bento grid. grid-cols-2 gap-4. Primary action (Kasir) col-span-2."
   },
   "components": {
-    "buttons": {
-      "primary": "bg-[#0033FF] text-white hover:bg-[#0022CC] h-14 px-8 font-bold tracking-wide rounded-sm transition-colors",
-      "secondary": "bg-transparent border-2 border-[#0A0A0A] text-[#0A0A0A] h-14 px-8 font-bold hover:bg-[#F4F5F7] rounded-sm",
-      "danger": "bg-[#FF3B30] text-white hover:bg-[#D72621] h-14 px-8 font-bold rounded-sm"
-    },
-    "inputs": {
-      "style": "h-14 bg-[#F4F5F7] border-b-2 border-[#D1D5DB] rounded-none px-4 focus:border-[#0033FF] focus:outline-none transition-colors text-base font-medium",
-      "labels": "uppercase text-xs tracking-widest text-[#4B5563] mb-2 block"
-    },
-    "cards_and_lists": {
-      "style": "bg-white border border-[#D1D5DB] p-6 mb-4 rounded-sm hover:-translate-y-1 transition-transform",
-      "inventory_item": "Flex row. Left side: Item Name (Chivo) & Category. Right side: Price & Stock (tabular-nums). If stock < 5, apply red text.",
-      "transaction_item": "Flex row. Left side: Date & Customer. Right side: Total (Green if Paid, Red if Unpaid)."
-    },
-    "navigation": {
-      "header": "Sticky top, bg-white/90 backdrop-blur-xl border-b border-[#D1D5DB] h-16 flex items-center px-4 z-50",
-      "bottom_tab": "Sticky bottom for primary actions in Cashier view (e.g., massive PAY button)."
-    }
+    "buttons": "Shadcn standard. h-12 for better mobile touch targets. font-medium.",
+    "inputs": "Shadcn input, h-12. rounded-xl. focus:ring-2 focus:ring-slate-900.",
+    "cards": "Flat design, border border-slate-200, bg-white, no heavy shadows.",
+    "header": "Sticky top, backdrop-blur-md bg-white/80, z-50, border-b border-slate-200."
   },
-  "pages_and_features": {
+  "screens": {
     "login_register": {
-      "layout": "Full screen split or stacked. Top: Stark workshop image with bg-black/50 overlay. Bottom: Form.",
-      "fields": "Username, Name, Password, Email (Optional)."
+      "description": "Minimalist form. No ad images. Tabs for Login vs Register. Register has toggle for Owner vs Employee (Join via 18-char ID).",
+      "elements": ["Logo (Lucide Wrench or Hexagon)", "Tabs", "Form Fields", "Submit Button"]
     },
     "dashboard": {
-      "layout": "Bento grid (Mode B). Large tap targets.",
-      "items": "Kasir (Cashier), Bon/Pencatatan Transaksi, Daftar Barang, Detail Bengkel, Detail Pengguna."
+      "header": "Displays Workshop Name (H2), User Name (body), Role (small badge).",
+      "menu_grid": "Grid with main actions. Kasir (col-span-2), Transaksi, Barang, Bengkel, Pengguna.",
+      "system_section": "Placed at the bottom of the dashboard menu list. Contains Settings and Logout (destructive)."
     },
-    "kasir": {
-      "layout": "List of available items/services + persistent cart summary at bottom.",
-      "features": "Input barang/jasa, quantity, discount, payment method, total calculation, print/download simple receipt. Use large bold numbers for TOTAL."
+    "cashier": {
+      "description": "Fast POS entry. Search/Scan item, quick quantity adjust, total calculation, checkout button."
     },
-    "bon_transaksi": {
-      "layout": "Data-dense list. Sharp borders.",
-      "features": "Date, customer, items, total, status (Paid/Unpaid), invoice number, notes, mechanic."
+    "inventory": {
+      "description": "List of items with stock. Add/Edit/Delete actions."
     },
-    "daftar_barang": {
-      "layout": "List with sticky search header.",
-      "features": "Name, category, price, stock, supplier, item code, visual warning for low stock (Signal Red block or icon)."
-    },
-    "detail_pengguna": {
-      "layout": "List with role badges.",
-      "features": "Admin, Kasir, Mekanik. High contrast badges (e.g., Admin = Blue, Kasir = Black, Mekanik = Grey)."
+    "workshop_details": {
+      "description": "Info about workshop. Crucially: Section for Admin to approve or remove employee access."
     }
   },
   "media": {
-    "images": [
+    "image_urls": [
       {
-        "category": "auth_background",
-        "url": "https://images.unsplash.com/photo-1756575527484-2839c593ed84?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxjYXIlMjB3b3Jrc2hvcCUyMG1lY2hhbmljJTIwbW9kZXJufGVufDB8fHx8MTc3NjgzNzcwMnww&ixlib=rb-4.1.0&q=85",
-        "description": "Dimly lit mechanic working, overlaid with high-contrast text and solid form."
-      },
-      {
-        "category": "dashboard_header",
-        "url": "https://images.pexels.com/photos/8985462/pexels-photo-8985462.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Well-equipped modern garage, use as abstract header banner with heavy black/40 overlay."
+        "url": "https://images.unsplash.com/photo-1772423428101-6ab2811e0c2c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxtaW5pbWFsaXN0JTIwZ2VvbWV0cmljJTIwbG9nbyUyMGJsYWNrJTIwYW5kJTIwd2hpdGV8ZW58MHx8fHwxNzc2ODYzNjM5fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Minimalist abstract lines. Use strictly as a subtle watermark or auth background if completely necessary, otherwise rely on empty space. Keep opacity very low (e.g. 5%).",
+        "category": "abstract_watermark"
       }
-    ],
-    "icons": {
-      "library": "phosphor-icons/react",
-      "style": "Duotone or Bold weight. High contrast.",
-      "installation": "yarn add @phosphor-icons/react"
-    }
-  },
-  "testing_attributes": {
-    "rule": "All interactive elements must include data-testid",
-    "examples": [
-      "data-testid='login-submit-button'",
-      "data-testid='cashier-menu-card'",
-      "data-testid='add-item-to-cart-button'",
-      "data-testid='checkout-total-value'",
-      "data-testid='inventory-search-input'"
     ]
   },
-  "motion_and_interactions": {
-    "rule": "Minimalist. Snap responses. Function over form.",
-    "hover": "Explicit text color changes on hover (e.g., hover:bg-[#0022CC] hover:text-white). Cards lift slightly (-translate-y-1).",
-    "focus": "High contrast ring focus: focus:ring-2 focus:ring-[#0033FF] focus:outline-none."
+  "accessibility_and_testing": {
+    "data_testid": "MANDATORY for all interactive elements (e.g., login-submit-button, menu-kasir-button).",
+    "touch_targets": "Minimum 44x44px for mobile interaction (h-12 in Tailwind)."
   },
   "instructions_to_main_agent": [
-    "Strictly follow the JSON rules. Do not use generic 'Inter' or 'Roboto' fonts. Import Chivo and IBM Plex Sans via Google Fonts.",
-    "Ensure the app is built mobile-first. Use large tap targets (h-14) since users (mechanics/cashiers) operate in fast-paced physical environments.",
-    "Implement the Swiss grid: sharp corners, solid 1px borders, structural greyscale with stark International Klein Blue (#0033FF) for primary actions.",
-    "Ensure all numbers (stock, prices, totals) use tabular-nums (font-mono) for alignment.",
-    "Always apply 'data-testid' to actionable items and values as specified."
+    "Delete all old ad-like images from Login and Dashboard.",
+    "Implement multi-tenant logic (Workshop ID separation).",
+    "When owner registers, collect 'Nama Bengkel'.",
+    "When employee registers, collect 18-character alphanumeric 'Workshop ID' to join.",
+    "Admin/Owner must approve employees in the 'Detail Bengkel' page before they can access the full system.",
+    "Header must strictly show Workshop Name (prominent), and User Name + Role below it.",
+    "Move Logout button to a 'Sistem' section at the bottom of the dashboard menu.",
+    "Ensure UI is mobile-first, using Tailwind and Shadcn components customized with rounded-2xl and h-12 inputs/buttons for touch.",
+    "Do NOT use 'Inter'. Use 'Outfit' for headings and 'Figtree' for body.",
+    "Keep it extremely clean: white backgrounds, slate borders, slate-900 text. No unnecessary gradients or heavy shadows."
   ]
 }
