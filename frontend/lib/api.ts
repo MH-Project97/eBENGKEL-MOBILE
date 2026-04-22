@@ -37,11 +37,15 @@ type UpdateUserPayload = {
 
 type ItemPayload = {
   name: string;
-  category: string;
-  price: number;
   stock: number;
-  supplier: string;
   item_code: string;
+  unit: string;
+  cost_price: number;
+  workshop_price: number;
+  consumer_price: number;
+  notes: string;
+  category: string;
+  supplier: string;
   low_stock_threshold: number;
 };
 

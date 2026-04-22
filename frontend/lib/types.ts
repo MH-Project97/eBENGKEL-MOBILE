@@ -29,11 +29,16 @@ export type WorkshopProfile = {
 export type InventoryItem = {
   id: string;
   name: string;
-  category: string;
-  price: number;
   stock: number;
-  supplier: string;
   item_code: string;
+  unit: string;
+  cost_price: number;
+  workshop_price: number;
+  consumer_price: number;
+  notes: string;
+  price: number;
+  category: string;
+  supplier: string;
   low_stock_threshold: number;
   created_at: string;
   updated_at: string;

@@ -127,11 +127,16 @@ class WorkshopUpdateRequest(BaseModel):
 
 class InventoryItemBase(BaseModel):
     name: str
-    category: str
-    price: float = Field(ge=0)
     stock: int = Field(ge=0)
-    supplier: str
     item_code: str
+    unit: str = "pcs"
+    cost_price: float = Field(default=0, ge=0)
+    workshop_price: float = Field(default=0, ge=0)
+    consumer_price: float = Field(default=0, ge=0)
+    notes: str = ""
+    price: float = Field(default=0, ge=0)
+    category: str = ""
+    supplier: str = ""
     low_stock_threshold: int = Field(default=5, ge=0)
 
 
@@ -328,6 +333,20 @@ async def apply_inventory_stock_updates(stock_updates: dict[str, int], timestamp
             {"id": item_id},
             {"$set": {"stock": new_stock, "updated_at": timestamp}},
         )
+
+
+def normalize_inventory_item_document(document: dict) -> dict:
+    normalized = {**document}
+    base_price = float(normalized.get("price", normalized.get("consumer_price", 0)))
+    normalized["unit"] = normalized.get("unit") or "pcs"
+    normalized["cost_price"] = float(normalized.get("cost_price", 0))
+    normalized["workshop_price"] = float(normalized.get("workshop_price", base_price))
+    normalized["consumer_price"] = float(normalized.get("consumer_price", base_price))
+    normalized["notes"] = normalized.get("notes", "")
+    normalized["price"] = float(normalized.get("consumer_price", base_price))
+    normalized["category"] = normalized.get("category", "")
+    normalized["supplier"] = normalized.get("supplier", "")
+    return normalized
 
 
 def derive_payment_fields(total: float, amount_paid: float) -> dict:
@@ -531,7 +550,7 @@ async def get_dashboard_summary(current_user: dict = Depends(get_current_user)) 
         low_stock_count=len(low_stock_items_raw),
         total_transactions=total_transactions,
         today_revenue=today_revenue,
-        low_stock_items=[InventoryItem(**item) for item in low_stock_items_raw],
+        low_stock_items=[InventoryItem(**normalize_inventory_item_document(item)) for item in low_stock_items_raw],
         recent_transactions=[TransactionRecord(**normalize_transaction_document(item)) for item in recent_transactions_raw],
     )
 
@@ -660,13 +679,13 @@ async def list_items(
         filters = {
             "$or": [
                 {"name": {"$regex": q, "$options": "i"}},
-                {"category": {"$regex": q, "$options": "i"}},
                 {"item_code": {"$regex": q, "$options": "i"}},
-                {"supplier": {"$regex": q, "$options": "i"}},
+                {"notes": {"$regex": q, "$options": "i"}},
+                {"unit": {"$regex": q, "$options": "i"}},
             ]
         }
     items = await db.inventory.find(filters, {"_id": 0}).sort("updated_at", -1).to_list(500)
-    return [InventoryItem(**item) for item in items]
+    return [InventoryItem(**normalize_inventory_item_document(item)) for item in items]
 
 
 @api_router.post("/items", response_model=InventoryItem)
@@ -682,11 +701,16 @@ async def create_item(
     item = InventoryItem(
         id=str(uuid.uuid4()),
         name=payload.name.strip(),
-        category=payload.category.strip(),
-        price=payload.price,
         stock=payload.stock,
-        supplier=payload.supplier.strip(),
         item_code=payload.item_code.strip().upper(),
+        unit=payload.unit.strip().lower(),
+        cost_price=payload.cost_price,
+        workshop_price=payload.workshop_price,
+        consumer_price=payload.consumer_price,
+        notes=payload.notes.strip(),
+        price=payload.consumer_price,
+        category=payload.category.strip(),
+        supplier=payload.supplier.strip(),
         low_stock_threshold=payload.low_stock_threshold,
         created_at=timestamp,
         updated_at=timestamp,
@@ -715,11 +739,16 @@ async def update_item(
     updated_item = InventoryItem(
         id=item_id,
         name=payload.name.strip(),
-        category=payload.category.strip(),
-        price=payload.price,
         stock=payload.stock,
-        supplier=payload.supplier.strip(),
         item_code=payload.item_code.strip().upper(),
+        unit=payload.unit.strip().lower(),
+        cost_price=payload.cost_price,
+        workshop_price=payload.workshop_price,
+        consumer_price=payload.consumer_price,
+        notes=payload.notes.strip(),
+        price=payload.consumer_price,
+        category=payload.category.strip(),
+        supplier=payload.supplier.strip(),
         low_stock_threshold=payload.low_stock_threshold,
         created_at=existing_item["created_at"],
         updated_at=now_iso(),
