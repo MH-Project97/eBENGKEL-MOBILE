@@ -87,6 +87,14 @@ class UserCreateByAdmin(RegisterRequest):
     role: Literal["admin", "kasir", "mekanik"]
 
 
+class UserUpdateByAdmin(BaseModel):
+    username: str
+    full_name: str
+    email: Optional[EmailStr] = None
+    role: Literal["admin", "kasir", "mekanik"]
+    password: Optional[str] = Field(default=None, min_length=6)
+
+
 class RoleUpdateRequest(BaseModel):
     role: Literal["admin", "kasir", "mekanik"]
 
@@ -207,6 +215,116 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def build_user_public(user_document: dict) -> UserPublic:
+    return UserPublic(
+        id=user_document["id"],
+        username=user_document["username"],
+        full_name=user_document["full_name"],
+        email=user_document.get("email"),
+        role=user_document["role"],
+        created_at=user_document["created_at"],
+    )
+
+
+def parse_date_boundary(date_value: str, is_end: bool = False) -> str:
+    date_part = datetime.strptime(date_value[:10], "%Y-%m-%d")
+    normalized = date_part.replace(tzinfo=timezone.utc)
+    if is_end:
+        normalized = normalized + timedelta(days=1) - timedelta(microseconds=1)
+    return normalized.isoformat()
+
+
+async def restore_inventory_stock(previous_lines: list[dict], timestamp: str) -> None:
+    for line in previous_lines:
+        if line.get("type") != "barang" or not line.get("item_id"):
+            continue
+
+        item = await db.inventory.find_one({"id": line["item_id"]}, {"_id": 0})
+        if not item:
+            raise HTTPException(status_code=404, detail=f"Barang terkait transaksi tidak ditemukan: {line['name']}")
+
+        await db.inventory.update_one(
+            {"id": item["id"]},
+            {"$set": {"stock": item["stock"] + int(line["quantity"]), "updated_at": timestamp}},
+        )
+
+
+async def build_transaction_lines_and_stock(
+    new_lines: list[TransactionLineInput],
+    previous_lines: Optional[list[dict]] = None,
+) -> tuple[list[TransactionLine], dict[str, int], float]:
+    if not new_lines:
+        raise HTTPException(status_code=400, detail="Tambahkan minimal satu barang atau jasa")
+
+    previous_lines = previous_lines or []
+    involved_item_ids = {
+        line["item_id"]
+        for line in previous_lines
+        if line.get("type") == "barang" and line.get("item_id")
+    }
+    involved_item_ids.update(
+        line.item_id for line in new_lines if line.type == "barang" and line.item_id
+    )
+
+    item_map: dict[str, dict] = {}
+    if involved_item_ids:
+        items = await db.inventory.find(
+            {"id": {"$in": list(involved_item_ids)}},
+            {"_id": 0},
+        ).to_list(len(involved_item_ids))
+        item_map = {item["id"]: item for item in items}
+        if len(item_map) != len(involved_item_ids):
+            raise HTTPException(status_code=404, detail="Ada barang transaksi yang sudah tidak tersedia")
+
+    available_stock = {item_id: item["stock"] for item_id, item in item_map.items()}
+    for old_line in previous_lines:
+        if old_line.get("type") == "barang" and old_line.get("item_id"):
+            available_stock[old_line["item_id"]] = available_stock.get(old_line["item_id"], 0) + int(old_line["quantity"])
+
+    transaction_lines: list[TransactionLine] = []
+    subtotal = 0.0
+
+    for line in new_lines:
+        item_name = line.name.strip()
+        unit_price = float(line.unit_price)
+        item_id = line.item_id
+
+        if line.type == "barang":
+            if not item_id:
+                raise HTTPException(status_code=400, detail="Barang harus memiliki item_id")
+            item = item_map.get(item_id)
+            if not item:
+                raise HTTPException(status_code=404, detail=f"Barang untuk {item_name} tidak ditemukan")
+            if available_stock[item_id] < line.quantity:
+                raise HTTPException(status_code=400, detail=f"Stok {item['name']} tidak cukup")
+            available_stock[item_id] -= line.quantity
+            item_name = item["name"]
+            unit_price = float(item["price"])
+
+        line_total = round(unit_price * line.quantity, 2)
+        subtotal += line_total
+        transaction_lines.append(
+            TransactionLine(
+                item_id=item_id,
+                type=line.type,
+                name=item_name,
+                quantity=line.quantity,
+                unit_price=unit_price,
+                line_total=line_total,
+            )
+        )
+
+    return transaction_lines, available_stock, round(subtotal, 2)
+
+
+async def apply_inventory_stock_updates(stock_updates: dict[str, int], timestamp: str) -> None:
+    for item_id, new_stock in stock_updates.items():
+        await db.inventory.update_one(
+            {"id": item_id},
+            {"$set": {"stock": new_stock, "updated_at": timestamp}},
+        )
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
@@ -318,14 +436,7 @@ async def register_user(payload: RegisterRequest) -> AuthResponse:
     }
     await db.users.insert_one(user_document)
 
-    user_public = UserPublic(
-        id=user_document["id"],
-        username=user_document["username"],
-        full_name=user_document["full_name"],
-        email=user_document["email"],
-        role=user_document["role"],
-        created_at=user_document["created_at"],
-    )
+    user_public = build_user_public(user_document)
     token = create_token(user_public.id, user_public.username, user_public.role)
     return AuthResponse(access_token=token, user=user_public)
 
@@ -336,14 +447,7 @@ async def login_user(payload: LoginRequest) -> AuthResponse:
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Username atau password salah")
 
-    user_public = UserPublic(
-        id=user["id"],
-        username=user["username"],
-        full_name=user["full_name"],
-        email=user.get("email"),
-        role=user["role"],
-        created_at=user["created_at"],
-    )
+    user_public = build_user_public(user)
     token = create_token(user_public.id, user_public.username, user_public.role)
     return AuthResponse(access_token=token, user=user_public)
 
@@ -425,14 +529,7 @@ async def create_user_by_admin(
         "created_at": now_iso(),
     }
     await db.users.insert_one(user_document)
-    return UserPublic(
-        id=user_document["id"],
-        username=user_document["username"],
-        full_name=user_document["full_name"],
-        email=user_document["email"],
-        role=user_document["role"],
-        created_at=user_document["created_at"],
-    )
+    return build_user_public(user_document)
 
 
 @api_router.patch("/users/{user_id}/role", response_model=UserPublic)
@@ -448,6 +545,56 @@ async def update_user_role(
     await db.users.update_one({"id": user_id}, {"$set": {"role": payload.role}})
     updated_user = {**existing_user, "role": payload.role}
     return UserPublic(**updated_user)
+
+
+@api_router.put("/users/{user_id}", response_model=UserPublic)
+async def update_user_by_admin(
+    user_id: str,
+    payload: UserUpdateByAdmin,
+    admin_user: dict = Depends(get_admin_user),
+) -> UserPublic:
+    existing_user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan")
+
+    normalized_username = normalize_username(payload.username)
+    duplicate_user = await db.users.find_one(
+        {"username": normalized_username, "id": {"$ne": user_id}},
+        {"_id": 0},
+    )
+    if duplicate_user:
+        raise HTTPException(status_code=400, detail="Username sudah dipakai")
+
+    updated_document = {
+        "id": user_id,
+        "username": normalized_username,
+        "full_name": payload.full_name.strip(),
+        "email": payload.email,
+        "role": payload.role,
+        "created_at": existing_user["created_at"],
+        "password_hash": existing_user["password_hash"],
+    }
+    if payload.password:
+        updated_document["password_hash"] = hash_password(payload.password)
+
+    await db.users.update_one({"id": user_id}, {"$set": updated_document})
+    return build_user_public(updated_document)
+
+
+@api_router.delete("/users/{user_id}", response_model=ApiMessage)
+async def delete_user_by_admin(
+    user_id: str,
+    admin_user: dict = Depends(get_admin_user),
+) -> ApiMessage:
+    if admin_user["id"] == user_id:
+        raise HTTPException(status_code=400, detail="Admin tidak bisa menghapus akunnya sendiri")
+
+    existing_user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan")
+
+    await db.users.delete_one({"id": user_id})
+    return ApiMessage(message="Pengguna berhasil dihapus")
 
 
 @api_router.get("/items", response_model=list[InventoryItem])
@@ -528,10 +675,60 @@ async def update_item(
     return updated_item
 
 
+@api_router.delete("/items/{item_id}", response_model=ApiMessage)
+async def delete_item(
+    item_id: str,
+    admin_user: dict = Depends(get_admin_user),
+) -> ApiMessage:
+    existing_item = await db.inventory.find_one({"id": item_id}, {"_id": 0})
+    if not existing_item:
+        raise HTTPException(status_code=404, detail="Barang tidak ditemukan")
+
+    transaction_usage = await db.transactions.count_documents({"lines": {"$elemMatch": {"item_id": item_id}}})
+    if transaction_usage > 0:
+        raise HTTPException(status_code=400, detail="Barang sudah dipakai di transaksi dan tidak bisa dihapus")
+
+    await db.inventory.delete_one({"id": item_id})
+    return ApiMessage(message="Barang berhasil dihapus")
+
+
 @api_router.get("/transactions", response_model=list[TransactionRecord])
-async def list_transactions(current_user: dict = Depends(get_current_user)) -> list[TransactionRecord]:
-    transactions = await db.transactions.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
+async def list_transactions(
+    start_date: str = Query(default=""),
+    end_date: str = Query(default=""),
+    status_filter: str = Query(default="", alias="status"),
+    mechanic_name: str = Query(default=""),
+    current_user: dict = Depends(get_current_user),
+) -> list[TransactionRecord]:
+    filters: dict = {}
+    transaction_date_filter: dict = {}
+
+    if start_date.strip():
+        transaction_date_filter["$gte"] = parse_date_boundary(start_date)
+    if end_date.strip():
+        transaction_date_filter["$lte"] = parse_date_boundary(end_date, is_end=True)
+    if transaction_date_filter:
+        filters["transaction_date"] = transaction_date_filter
+
+    if status_filter.strip() in {"paid", "unpaid"}:
+        filters["status"] = status_filter.strip()
+
+    if mechanic_name.strip():
+        filters["mechanic_name"] = {"$regex": mechanic_name.strip(), "$options": "i"}
+
+    transactions = await db.transactions.find(filters, {"_id": 0}).sort("created_at", -1).to_list(300)
     return [TransactionRecord(**transaction) for transaction in transactions]
+
+
+@api_router.get("/transactions/{transaction_id}", response_model=TransactionRecord)
+async def get_transaction(
+    transaction_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> TransactionRecord:
+    transaction = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+    return TransactionRecord(**transaction)
 
 
 @api_router.post("/transactions", response_model=TransactionRecord)
@@ -542,40 +739,7 @@ async def create_transaction(
     if current_user["role"] == "mekanik":
         raise HTTPException(status_code=403, detail="Role mekanik tidak bisa membuat transaksi")
 
-    if not payload.lines:
-        raise HTTPException(status_code=400, detail="Tambahkan minimal satu barang atau jasa")
-
-    transaction_lines: list[TransactionLine] = []
-    inventory_updates: list[tuple[str, int]] = []
-    subtotal = 0.0
-
-    for line in payload.lines:
-        item_name = line.name.strip()
-        unit_price = float(line.unit_price)
-        if line.type == "barang":
-            if not line.item_id:
-                raise HTTPException(status_code=400, detail="Barang harus memiliki item_id")
-            item = await db.inventory.find_one({"id": line.item_id}, {"_id": 0})
-            if not item:
-                raise HTTPException(status_code=404, detail=f"Barang untuk {item_name} tidak ditemukan")
-            if item["stock"] < line.quantity:
-                raise HTTPException(status_code=400, detail=f"Stok {item['name']} tidak cukup")
-            item_name = item["name"]
-            unit_price = float(item["price"])
-            inventory_updates.append((item["id"], item["stock"] - line.quantity))
-
-        line_total = round(unit_price * line.quantity, 2)
-        subtotal += line_total
-        transaction_lines.append(
-            TransactionLine(
-                item_id=line.item_id,
-                type=line.type,
-                name=item_name,
-                quantity=line.quantity,
-                unit_price=unit_price,
-                line_total=line_total,
-            )
-        )
+    transaction_lines, inventory_updates, subtotal = await build_transaction_lines_and_stock(payload.lines)
 
     total = round(max(subtotal - payload.discount, 0), 2)
     timestamp = now_iso()
@@ -598,13 +762,66 @@ async def create_transaction(
     )
 
     await db.transactions.insert_one(transaction.model_dump())
-    for item_id, new_stock in inventory_updates:
-        await db.inventory.update_one(
-            {"id": item_id},
-            {"$set": {"stock": new_stock, "updated_at": timestamp}},
-        )
+    await apply_inventory_stock_updates(inventory_updates, timestamp)
 
     return transaction
+
+
+@api_router.put("/transactions/{transaction_id}", response_model=TransactionRecord)
+async def update_transaction(
+    transaction_id: str,
+    payload: TransactionCreateRequest,
+    current_user: dict = Depends(get_current_user),
+) -> TransactionRecord:
+    if current_user["role"] == "mekanik":
+        raise HTTPException(status_code=403, detail="Role mekanik tidak bisa mengubah transaksi")
+
+    existing_transaction = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
+    if not existing_transaction:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+
+    transaction_lines, inventory_updates, subtotal = await build_transaction_lines_and_stock(
+        payload.lines,
+        existing_transaction["lines"],
+    )
+    total = round(max(subtotal - payload.discount, 0), 2)
+    timestamp = now_iso()
+    updated_transaction = TransactionRecord(
+        id=transaction_id,
+        invoice_number=(payload.invoice_number or existing_transaction["invoice_number"]).strip(),
+        transaction_date=existing_transaction["transaction_date"],
+        customer_name=payload.customer_name.strip(),
+        mechanic_name=payload.mechanic_name.strip(),
+        notes=payload.notes.strip(),
+        payment_method=payload.payment_method,
+        status=payload.status,
+        discount=round(payload.discount, 2),
+        subtotal=subtotal,
+        total=total,
+        lines=transaction_lines,
+        created_by_name=existing_transaction["created_by_name"],
+        created_by_role=existing_transaction["created_by_role"],
+        created_at=existing_transaction["created_at"],
+    )
+
+    await db.transactions.update_one({"id": transaction_id}, {"$set": updated_transaction.model_dump()})
+    await apply_inventory_stock_updates(inventory_updates, timestamp)
+    return updated_transaction
+
+
+@api_router.delete("/transactions/{transaction_id}", response_model=ApiMessage)
+async def delete_transaction(
+    transaction_id: str,
+    admin_user: dict = Depends(get_admin_user),
+) -> ApiMessage:
+    existing_transaction = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
+    if not existing_transaction:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+
+    timestamp = now_iso()
+    await restore_inventory_stock(existing_transaction["lines"], timestamp)
+    await db.transactions.delete_one({"id": transaction_id})
+    return ApiMessage(message="Transaksi berhasil dihapus")
 
 
 app.include_router(api_router)

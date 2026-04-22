@@ -1,4 +1,5 @@
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
 
@@ -21,6 +22,10 @@ const statusOptions = ["paid", "unpaid"] as const;
 
 export default function CashierScreen() {
   const { session } = useAuth();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ editId?: string | string[] }>();
+  const editIdParam = Array.isArray(params.editId) ? params.editId[0] : params.editId;
+  const isEditMode = Boolean(editIdParam);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [search, setSearch] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -34,6 +39,7 @@ export default function CashierScreen() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [receipt, setReceipt] = useState<TransactionRecord | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingEditData, setLoadingEditData] = useState(false);
   const [error, setError] = useState("");
 
   const loadInventory = useCallback(async () => {
@@ -49,6 +55,46 @@ export default function CashierScreen() {
     useCallback(() => {
       void loadInventory();
     }, [loadInventory]),
+  );
+
+  const loadTransactionForEdit = useCallback(async () => {
+    if (!session?.token || !editIdParam) {
+      return;
+    }
+
+    try {
+      setLoadingEditData(true);
+      const transaction = await api.getTransaction(session.token, editIdParam);
+      setCustomerName(transaction.customer_name);
+      setMechanicName(transaction.mechanic_name);
+      setNotes(transaction.notes);
+      setDiscount(String(transaction.discount));
+      setPaymentMethod(transaction.payment_method as (typeof paymentOptions)[number]);
+      setStatus(transaction.status as (typeof statusOptions)[number]);
+      setCart(
+        transaction.lines.map((line, index) => ({
+          key: line.item_id ? `barang-${line.item_id}` : `jasa-${index}-${transaction.id}`,
+          item_id: line.item_id,
+          type: line.type,
+          name: line.name,
+          quantity: line.quantity,
+          unit_price: line.unit_price,
+        })),
+      );
+      setReceipt(null);
+    } catch (transactionError) {
+      setError(transactionError instanceof Error ? transactionError.message : "Gagal memuat transaksi")
+    } finally {
+      setLoadingEditData(false);
+    }
+  }, [editIdParam, session?.token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (editIdParam) {
+        void loadTransactionForEdit();
+      }
+    }, [editIdParam, loadTransactionForEdit]),
   );
 
   const subtotal = useMemo(
@@ -190,7 +236,7 @@ export default function CashierScreen() {
     try {
       setSubmitting(true);
       setError("");
-      const response = await api.createTransaction(session.token, {
+      const payload = {
         customer_name: customerName,
         mechanic_name: mechanicName,
         notes,
@@ -204,13 +250,21 @@ export default function CashierScreen() {
           quantity,
           unit_price,
         })),
-      });
+      };
+      const response = editIdParam
+        ? await api.updateTransaction(session.token, editIdParam, payload)
+        : await api.createTransaction(session.token, payload);
       setReceipt(response);
       setCart([]);
       setCustomerName("");
       setMechanicName("");
       setNotes("");
       setDiscount("0");
+      setPaymentMethod("tunai");
+      setStatus("paid");
+      if (editIdParam) {
+        router.replace("/cashier" as Href);
+      }
       await loadInventory();
     } catch (transactionError) {
       setError(transactionError instanceof Error ? transactionError.message : "Transaksi gagal disimpan");
@@ -221,6 +275,20 @@ export default function CashierScreen() {
 
   return (
     <ScreenShell title="Kasir" subtitle="Tambah barang, jasa, diskon, lalu simpan bon transaksi.">
+      {isEditMode ? (
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
+          <Text style={styles.helperText}>Perubahan transaksi akan otomatis menyesuaikan stok barang.</Text>
+          <ActionButton label="Batal edit" onPress={() => router.replace("/transactions" as Href)} variant="secondary" />
+        </SurfaceCard>
+      ) : null}
+
+      {loadingEditData ? (
+        <SurfaceCard>
+          <Text style={styles.helperText}>Memuat data transaksi untuk diedit...</Text>
+        </SurfaceCard>
+      ) : null}
+
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Informasi transaksi</Text>
         <FormField label="Nama pelanggan" value={customerName} onChangeText={setCustomerName} testID="cashier-customer-input" />
@@ -347,9 +415,9 @@ export default function CashierScreen() {
         </View>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <ActionButton
-          label={submitting ? "Menyimpan transaksi..." : "Simpan transaksi"}
+          label={submitting ? (isEditMode ? "Memperbarui transaksi..." : "Menyimpan transaksi...") : (isEditMode ? "Update transaksi" : "Simpan transaksi")}
           onPress={() => void saveTransaction()}
-          disabled={submitting || cart.length === 0}
+          disabled={submitting || cart.length === 0 || loadingEditData}
           testID="cashier-submit-button"
         />
       </SurfaceCard>

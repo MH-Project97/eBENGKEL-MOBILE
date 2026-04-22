@@ -11,7 +11,7 @@ import type {
 } from "./types";
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "PATCH";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   token?: string;
   body?: Record<string, unknown>;
 };
@@ -25,6 +25,14 @@ type RegisterPayload = {
 
 type CreateUserPayload = RegisterPayload & {
   role: User["role"];
+};
+
+type UpdateUserPayload = {
+  username: string;
+  full_name: string;
+  email?: string;
+  role: User["role"];
+  password?: string;
 };
 
 type ItemPayload = {
@@ -45,6 +53,13 @@ type TransactionPayload = {
   status: "paid" | "unpaid";
   discount: number;
   lines: TransactionLineInput[];
+};
+
+type TransactionFilters = {
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  mechanicName?: string;
 };
 
 const getBaseUrl = () => {
@@ -120,13 +135,51 @@ export const api = {
       body: payload,
     }),
 
-  getTransactions: (token: string) => request<TransactionRecord[]>("/transactions", { token }),
+  deleteItem: (token: string, itemId: string) =>
+    request<{ message: string }>(`/items/${itemId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  getTransactions: (token: string, filters: TransactionFilters = {}) => {
+    const query = new URLSearchParams();
+    if (filters.startDate) {
+      query.set("start_date", filters.startDate);
+    }
+    if (filters.endDate) {
+      query.set("end_date", filters.endDate);
+    }
+    if (filters.status && filters.status !== "all") {
+      query.set("status", filters.status);
+    }
+    if (filters.mechanicName) {
+      query.set("mechanic_name", filters.mechanicName);
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request<TransactionRecord[]>(`/transactions${suffix}`, { token });
+  },
+
+  getTransaction: (token: string, transactionId: string) =>
+    request<TransactionRecord>(`/transactions/${transactionId}`, { token }),
 
   createTransaction: (token: string, payload: TransactionPayload) =>
     request<TransactionRecord>("/transactions", {
       method: "POST",
       token,
       body: payload as unknown as Record<string, unknown>,
+    }),
+
+  updateTransaction: (token: string, transactionId: string, payload: TransactionPayload) =>
+    request<TransactionRecord>(`/transactions/${transactionId}`, {
+      method: "PUT",
+      token,
+      body: payload as unknown as Record<string, unknown>,
+    }),
+
+  deleteTransaction: (token: string, transactionId: string) =>
+    request<{ message: string }>(`/transactions/${transactionId}`, {
+      method: "DELETE",
+      token,
     }),
 
   getUsers: (token: string) => request<User[]>("/users", { token }),
@@ -138,10 +191,23 @@ export const api = {
       body: payload as unknown as Record<string, unknown>,
     }),
 
+  updateUser: (token: string, userId: string, payload: UpdateUserPayload) =>
+    request<User>(`/users/${userId}`, {
+      method: "PUT",
+      token,
+      body: payload as unknown as Record<string, unknown>,
+    }),
+
   updateUserRole: (token: string, userId: string, role: User["role"]) =>
     request<User>(`/users/${userId}/role`, {
       method: "PATCH",
       token,
       body: { role },
+    }),
+
+  deleteUser: (token: string, userId: string) =>
+    request<{ message: string }>(`/users/${userId}`, {
+      method: "DELETE",
+      token,
     }),
 };

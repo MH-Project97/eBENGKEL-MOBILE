@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { ActionButton } from "../../components/ActionButton";
+import { DeleteConfirmationCard } from "../../components/DeleteConfirmationCard";
 import { FormField } from "../../components/FormField";
 import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
@@ -23,11 +24,13 @@ const emptyForm = {
 
 export default function InventoryScreen() {
   const { session } = useAuth();
+  const isAdmin = session?.user.role === "admin";
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [search, setSearch] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const loadItems = useCallback(async () => {
     if (!session?.token) {
@@ -101,6 +104,24 @@ export default function InventoryScreen() {
     }
   };
 
+  const deleteSelectedItem = async () => {
+    if (!session?.token || !selectedItemId) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setError("");
+      await api.deleteItem(session.token, selectedItemId);
+      clearForm();
+      await loadItems();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Gagal menghapus barang");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <ScreenShell title="Daftar Barang" subtitle="Atur stok, harga, supplier, kode barang, dan batas stok minimum.">
       <View style={styles.summaryRow}>
@@ -135,6 +156,17 @@ export default function InventoryScreen() {
           <ActionButton label="Reset" onPress={clearForm} variant="secondary" testID="inventory-reset-button" />
         </View>
       </SurfaceCard>
+
+      {selectedItemId && isAdmin ? (
+        <DeleteConfirmationCard
+          title="Hapus barang"
+          description="Hanya admin yang boleh menghapus. Ketik HAPUS untuk melanjutkan."
+          onCancel={clearForm}
+          onConfirm={deleteSelectedItem}
+          loading={deleting}
+          testIDPrefix="inventory-delete"
+        />
+      ) : null}
 
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Cari dan pilih barang</Text>
