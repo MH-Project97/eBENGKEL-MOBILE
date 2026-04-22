@@ -15,6 +15,7 @@ import { colors, spacing, typography } from "../../lib/theme";
 import type { InventoryItem } from "../../lib/types";
 
 const units = ["pcs", "bungkus", "kotak", "set", "liter", "botol", "pasang", "roll"];
+const rowsPerPage = 15;
 
 const emptyForm = {
   item_code: "",
@@ -31,7 +32,7 @@ const emptyForm = {
 const columnWidths = {
   code: 120,
   name: 200,
-  stock: 90,
+  stock: 120,
   unit: 100,
   cost: 140,
   workshop: 160,
@@ -52,6 +53,9 @@ export default function InventoryScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [sortBy, setSortBy] = useState<"code" | "stock" | "price">("code");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadItems = useCallback(async () => {
     if (!session?.token) {
@@ -68,6 +72,30 @@ export default function InventoryScreen() {
   );
 
   const lowStockCount = useMemo(() => items.filter((item) => item.stock <= item.low_stock_threshold).length, [items]);
+
+  const sortedItems = useMemo(() => {
+    const nextItems = [...items];
+    nextItems.sort((left, right) => {
+      if (sortBy === "stock") {
+        return sortOrder === "asc" ? left.stock - right.stock : right.stock - left.stock;
+      }
+      if (sortBy === "price") {
+        return sortOrder === "asc"
+          ? left.consumer_price - right.consumer_price
+          : right.consumer_price - left.consumer_price;
+      }
+      const compared = left.item_code.localeCompare(right.item_code);
+      return sortOrder === "asc" ? compared : -compared;
+    });
+    return nextItems;
+  }, [items, sortBy, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / rowsPerPage));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const paginatedItems = useMemo(() => {
+    const start = (currentPageSafe - 1) * rowsPerPage;
+    return sortedItems.slice(start, start + rowsPerPage);
+  }, [currentPageSafe, sortedItems]);
 
   const updateField = (field: keyof typeof emptyForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -161,6 +189,16 @@ export default function InventoryScreen() {
 
   const tableWidth = Object.values(columnWidths).reduce((total, width) => total + width, 0);
 
+  const toggleSort = (nextSortBy: "code" | "stock" | "price") => {
+    setCurrentPage(1);
+    if (sortBy === nextSortBy) {
+      setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(nextSortBy);
+    setSortOrder(nextSortBy === "code" ? "asc" : "desc");
+  };
+
   return (
     <ScreenShell title="" subtitle="" hideHeader>
       <View style={styles.summaryRow}>
@@ -189,6 +227,7 @@ export default function InventoryScreen() {
             compact
             onPress={() => {
               setSearchQuery(searchDraft);
+              setCurrentPage(1);
             }}
             variant="secondary"
             testID="inventory-search-button"
@@ -201,7 +240,19 @@ export default function InventoryScreen() {
       </SurfaceCard>
 
       <SurfaceCard>
-        {items.length === 0 ? (
+        <View style={styles.sortRow}>
+          <ActionButton label={`Kode ${sortBy === "code" ? (sortOrder === "asc" ? "↑" : "↓") : ""}`} compact onPress={() => toggleSort("code")} variant={sortBy === "code" ? "primary" : "secondary"} testID="inventory-sort-code" />
+          <ActionButton label={`Stok ${sortBy === "stock" ? (sortOrder === "asc" ? "↑" : "↓") : ""}`} compact onPress={() => toggleSort("stock")} variant={sortBy === "stock" ? "primary" : "secondary"} testID="inventory-sort-stock" />
+          <ActionButton label={`Harga ${sortBy === "price" ? (sortOrder === "asc" ? "↑" : "↓") : ""}`} compact onPress={() => toggleSort("price")} variant={sortBy === "price" ? "primary" : "secondary"} testID="inventory-sort-price" />
+        </View>
+        <View style={styles.paginationInfoRow}>
+          <Text style={styles.helperText}>Menampilkan {sortedItems.length === 0 ? 0 : (currentPageSafe - 1) * rowsPerPage + 1}-{Math.min(currentPageSafe * rowsPerPage, sortedItems.length)} dari {sortedItems.length} barang</Text>
+          <Text style={styles.helperText}>Halaman {currentPageSafe}/{totalPages}</Text>
+        </View>
+      </SurfaceCard>
+
+      <SurfaceCard>
+        {sortedItems.length === 0 ? (
           <Text style={styles.helperText}>Belum ada data barang tersimpan.</Text>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -219,25 +270,41 @@ export default function InventoryScreen() {
               </View>
 
               <ScrollView style={styles.tableBody} nestedScrollEnabled>
-                {items.map((item) => (
-                  <View key={item.id} style={styles.tableRow}>
-                    <Text style={[styles.bodyCell, { width: columnWidths.code }]}>{item.item_code}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.name }]}>{item.name}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.stock }, item.stock <= item.low_stock_threshold && styles.lowStockText]}>{item.stock}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.unit }]}>{item.unit}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.cost }]}>{formatCurrency(item.cost_price)}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.workshop }]}>{formatCurrency(item.workshop_price)}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.consumer }]}>{formatCurrency(item.consumer_price)}</Text>
-                    <Text style={[styles.bodyCell, { width: columnWidths.notes }]}>{item.notes || "-"}</Text>
-                    <View style={[styles.actionCell, { width: columnWidths.action }]}>
-                      {isAdmin ? <ActionButton label="Edit" compact onPress={() => openEditModal(item)} testID={`inventory-item-${item.id}`} /> : <Text style={styles.readOnlyText}>Lihat</Text>}
+                {paginatedItems.map((item) => {
+                  const badgeTone = item.stock <= item.low_stock_threshold ? "danger" : item.stock <= item.low_stock_threshold * 2 ? "warning" : "success";
+                  const badgeLabel = item.stock <= item.low_stock_threshold ? "Kritis" : item.stock <= item.low_stock_threshold * 2 ? "Menipis" : "Aman";
+                  return (
+                    <View key={item.id} style={styles.tableRow}>
+                      <Text style={[styles.bodyCell, { width: columnWidths.code }]}>{item.item_code}</Text>
+                      <Text style={[styles.bodyCell, { width: columnWidths.name }]}>{item.name}</Text>
+                      <View style={[styles.stockCell, { width: columnWidths.stock }]}>
+                        <Text style={[styles.bodyCell, styles.stockValue, item.stock <= item.low_stock_threshold && styles.lowStockText]}>{item.stock}</Text>
+                        <View style={[styles.stockBadge, badgeTone === "danger" ? styles.badgeDanger : badgeTone === "warning" ? styles.badgeWarning : styles.badgeSuccess]}>
+                          <Text style={[styles.stockBadgeText, badgeTone === "warning" && styles.badgeWarningText]}>{badgeLabel}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.bodyCell, { width: columnWidths.unit }]}>{item.unit}</Text>
+                      <Text style={[styles.bodyCell, { width: columnWidths.cost }]}>{formatCurrency(item.cost_price)}</Text>
+                      <Text style={[styles.bodyCell, { width: columnWidths.workshop }]}>{formatCurrency(item.workshop_price)}</Text>
+                      <Text style={[styles.bodyCell, { width: columnWidths.consumer }]}>{formatCurrency(item.consumer_price)}</Text>
+                      <Text style={[styles.bodyCell, { width: columnWidths.notes }]}>{item.notes || "-"}</Text>
+                      <View style={[styles.actionCell, { width: columnWidths.action }]}>
+                        {isAdmin ? <ActionButton label="Edit" compact onPress={() => openEditModal(item)} testID={`inventory-item-${item.id}`} /> : <Text style={styles.readOnlyText}>Lihat</Text>}
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </ScrollView>
             </View>
           </ScrollView>
         )}
+      </SurfaceCard>
+
+      <SurfaceCard>
+        <View style={styles.paginationControls}>
+          <ActionButton label="Sebelumnya" compact onPress={() => setCurrentPage((current) => Math.max(1, current - 1))} variant="secondary" disabled={currentPageSafe <= 1} testID="inventory-page-prev" />
+          <ActionButton label="Berikutnya" compact onPress={() => setCurrentPage((current) => Math.min(totalPages, current + 1))} variant="secondary" disabled={currentPageSafe >= totalPages} testID="inventory-page-next" />
+        </View>
       </SurfaceCard>
 
       <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={closeModal}>
@@ -318,6 +385,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignItems: "center",
   },
+  sortRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  paginationInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    flexWrap: "wrap",
+  },
   searchInput: {
     flex: 1,
     minWidth: 190,
@@ -370,12 +448,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  stockCell: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.xs,
+  },
   bodyCell: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     color: colors.text,
     fontFamily: typography.bodyMedium,
     fontSize: 14,
+  },
+  stockValue: {
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+  stockBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+  },
+  stockBadgeText: {
+    color: colors.surface,
+    fontFamily: typography.bodyBold,
+    fontSize: 11,
+    textTransform: "uppercase",
+  },
+  badgeDanger: {
+    backgroundColor: colors.danger,
+  },
+  badgeWarning: {
+    backgroundColor: colors.warning,
+  },
+  badgeSuccess: {
+    backgroundColor: colors.success,
+  },
+  badgeWarningText: {
+    color: colors.text,
   },
   actionCell: {
     paddingVertical: spacing.sm,
@@ -390,6 +500,10 @@ const styles = StyleSheet.create({
   lowStockText: {
     color: colors.danger,
     fontFamily: typography.bodyBold,
+  },
+  paginationControls: {
+    flexDirection: "row",
+    gap: spacing.sm,
   },
   modalBackdrop: {
     flex: 1,
