@@ -41,20 +41,6 @@ export default function DashboardScreen() {
       title={session?.user.workshop_name ?? "Bengkel Anda"}
       subtitle={`${session?.user.full_name ?? "Pengguna"} • ${roleLabels[session?.user.role ?? "kasir"]}`}
     >
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Workshop aktif</Text>
-        <View style={styles.identityRow}>
-          <View style={styles.identityBox} testID="dashboard-workshop-code-box">
-            <Text style={styles.identityLabel}>ID Bengkel</Text>
-            <Text style={styles.identityValue}>{session?.user.workshop_code ?? "-"}</Text>
-          </View>
-          <View style={styles.identityBox} testID="dashboard-workshop-count-box">
-            <Text style={styles.identityLabel}>Akses Bengkel</Text>
-            <Text style={styles.identityValue}>{session?.user.workshops.length ?? 0}</Text>
-          </View>
-        </View>
-      </SurfaceCard>
-
       {loading ? (
         <SurfaceCard>
           <ActivityIndicator color={colors.primary} />
@@ -117,29 +103,6 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  identityRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
-  },
-  identityBox: {
-    flex: 1,
-    minWidth: 140,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
-    padding: spacing.md,
-    gap: 6,
-  },
-  identityLabel: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyBold,
-    fontSize: 12,
-  },
-  identityValue: {
-    color: colors.text,
-    fontFamily: typography.headingBold,
-    fontSize: 18,
-  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
