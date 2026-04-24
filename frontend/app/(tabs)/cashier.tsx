@@ -1,7 +1,18 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
-import { Platform, Share, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { ActionButton } from "../../components/ActionButton";
 import { FormField } from "../../components/FormField";
@@ -13,11 +24,18 @@ import { formatCurrency } from "../../lib/format";
 import { colors, spacing, typography } from "../../lib/theme";
 import type { InventoryItem, TransactionLineInput, TransactionRecord } from "../../lib/types";
 
+type CustomerMode = "konsumen" | "bengkel";
+
 type CartLine = TransactionLineInput & {
   key: string;
 };
 
-const paymentOptions = ["tunai", "transfer", "kartu", "qris"] as const;
+const paymentOptions = ["tunai", "transfer", "qris"] as const;
+const customerModes: { label: string; value: CustomerMode }[] = [
+  { label: "Konsumen", value: "konsumen" },
+  { label: "Bengkel", value: "bengkel" },
+];
+const SAVED_CUSTOMERS_KEY = "cashier-saved-customers";
 
 export default function CashierScreen() {
   const { session } = useAuth();
@@ -25,9 +43,15 @@ export default function CashierScreen() {
   const params = useLocalSearchParams<{ editId?: string | string[] }>();
   const editIdParam = Array.isArray(params.editId) ? params.editId[0] : params.editId;
   const isEditMode = Boolean(editIdParam);
+
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [search, setSearch] = useState("");
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [customerMode, setCustomerMode] = useState<CustomerMode>("konsumen");
   const [customerName, setCustomerName] = useState("");
+  const [savedCustomers, setSavedCustomers] = useState<string[]>([]);
+  const [customerModalVisible, setCustomerModalVisible] = useState(false);
+  const [customerDraft, setCustomerDraft] = useState("");
   const [mechanicName, setMechanicName] = useState("");
   const [notes, setNotes] = useState("");
   const [discount, setDiscount] = useState("0");
@@ -41,19 +65,55 @@ export default function CashierScreen() {
   const [loadingEditData, setLoadingEditData] = useState(false);
   const [error, setError] = useState("");
 
+  const inventoryMap = useMemo(
+    () => Object.fromEntries(inventoryItems.map((item) => [item.id, item])),
+    [inventoryItems],
+  );
+
+  const loadSavedCustomers = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(SAVED_CUSTOMERS_KEY);
+      if (!raw) {
+        setSavedCustomers([]);
+        return;
+      }
+      const parsed = JSON.parse(raw) as string[];
+      setSavedCustomers(parsed.filter(Boolean));
+    } catch {
+      setSavedCustomers([]);
+    }
+  }, []);
+
+  const persistSavedCustomers = useCallback(async (names: string[]) => {
+    setSavedCustomers(names);
+    await AsyncStorage.setItem(SAVED_CUSTOMERS_KEY, JSON.stringify(names));
+  }, []);
+
+  const saveCustomerLocally = useCallback(
+    async (name: string) => {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        return;
+      }
+      const deduped = [trimmedName, ...savedCustomers.filter((item) => item.toLowerCase() !== trimmedName.toLowerCase())].slice(0, 8);
+      await persistSavedCustomers(deduped);
+    },
+    [persistSavedCustomers, savedCustomers],
+  );
+
   const loadInventory = useCallback(async () => {
     if (!session?.token) {
       return;
     }
-
     const response = await api.getItems(session.token, search);
     setInventoryItems(response);
   }, [search, session?.token]);
 
   useFocusEffect(
     useCallback(() => {
+      void loadSavedCustomers();
       void loadInventory();
-    }, [loadInventory]),
+    }, [loadInventory, loadSavedCustomers]),
   );
 
   const loadTransactionForEdit = useCallback(async () => {
@@ -64,6 +124,7 @@ export default function CashierScreen() {
     try {
       setLoadingEditData(true);
       const transaction = await api.getTransaction(session.token, editIdParam);
+      setCustomerMode(transaction.customer_mode ?? "konsumen");
       setCustomerName(transaction.customer_name);
       setMechanicName(transaction.mechanic_name);
       setNotes(transaction.notes);
@@ -96,6 +157,22 @@ export default function CashierScreen() {
     }, [editIdParam, loadTransactionForEdit]),
   );
 
+  useEffect(() => {
+    setCart((current) =>
+      current.map((line) => {
+        if (line.type !== "barang" || !line.item_id) {
+          return line;
+        }
+        const item = inventoryMap[line.item_id];
+        if (!item) {
+          return line;
+        }
+        const nextPrice = customerMode === "bengkel" ? item.workshop_price : item.consumer_price;
+        return line.unit_price === nextPrice ? line : { ...line, unit_price: nextPrice };
+      }),
+    );
+  }, [customerMode, inventoryMap]);
+
   const subtotal = useMemo(
     () => cart.reduce((total, line) => total + line.unit_price * line.quantity, 0),
     [cart],
@@ -106,12 +183,26 @@ export default function CashierScreen() {
   const changeDue = Math.max(paidAmount - total, 0);
   const paymentStateLabel = balanceDue > 0 ? "Masih hutang" : changeDue > 0 ? "Ada kembalian" : "Lunas";
 
+  const getItemPriceByMode = (item: InventoryItem) =>
+    customerMode === "bengkel" ? item.workshop_price : item.consumer_price;
+
   const addInventoryItem = (item: InventoryItem) => {
+    if (item.stock <= 0) {
+      setError("Stok barang habis");
+      return;
+    }
+
+    const nextPrice = getItemPriceByMode(item);
+    setError("");
     setCart((current) => {
       const existing = current.find((line) => line.item_id === item.id && line.type === "barang");
       if (existing) {
+        if (existing.quantity >= item.stock) {
+          setError("Jumlah barang di keranjang sudah mencapai stok tersedia");
+          return current;
+        }
         return current.map((line) =>
-          line.key === existing.key ? { ...line, quantity: line.quantity + 1 } : line,
+          line.key === existing.key ? { ...line, quantity: line.quantity + 1, unit_price: nextPrice } : line,
         );
       }
 
@@ -123,7 +214,7 @@ export default function CashierScreen() {
           type: "barang",
           name: item.name,
           quantity: 1,
-          unit_price: item.price,
+          unit_price: nextPrice,
         },
       ];
     });
@@ -150,12 +241,41 @@ export default function CashierScreen() {
     setServicePrice("");
   };
 
-  const updateQuantity = (lineKey: string, nextQuantity: number) => {
-    setCart((current) =>
-      current
-        .map((line) => (line.key === lineKey ? { ...line, quantity: Math.max(nextQuantity, 0) } : line))
-        .filter((line) => line.quantity > 0),
-    );
+  const removeLine = (lineKey: string) => {
+    setCart((current) => current.filter((line) => line.key !== lineKey));
+  };
+
+  const updateQuantity = (line: CartLine, delta: number) => {
+    const nextQuantity = line.quantity + delta;
+    if (nextQuantity <= 0) {
+      removeLine(line.key);
+      return;
+    }
+
+    if (line.type === "barang" && line.item_id) {
+      const sourceItem = inventoryMap[line.item_id];
+      if (sourceItem && nextQuantity > sourceItem.stock) {
+        setError("Jumlah melebihi stok yang tersedia");
+        return;
+      }
+    }
+
+    setError("");
+    setCart((current) => current.map((item) => (item.key === line.key ? { ...item, quantity: nextQuantity } : item)));
+  };
+
+  const openCustomerModal = () => {
+    setCustomerDraft(customerName);
+    setCustomerModalVisible(true);
+  };
+
+  const saveCustomerDraft = async () => {
+    if (!customerDraft.trim()) {
+      return;
+    }
+    await saveCustomerLocally(customerDraft);
+    setCustomerName(customerDraft.trim());
+    setCustomerModalVisible(false);
   };
 
   const buildReceiptHtml = (transaction: TransactionRecord) => `
@@ -163,6 +283,7 @@ export default function CashierScreen() {
       <body style="font-family: Arial; padding: 24px;">
         <h1>Bon Bengkel</h1>
         <p>Invoice: ${transaction.invoice_number}</p>
+        <p>Mode pelanggan: ${transaction.customer_mode}</p>
         <p>Pelanggan: ${transaction.customer_name || "Pelanggan umum"}</p>
         <p>Mekanik: ${transaction.mechanic_name || "-"}</p>
         <hr />
@@ -244,6 +365,7 @@ export default function CashierScreen() {
       setError("");
       const derivedStatus: "paid" | "unpaid" = paidAmount >= total ? "paid" : "unpaid";
       const payload = {
+        customer_mode: customerMode,
         customer_name: customerName,
         mechanic_name: mechanicName,
         notes,
@@ -264,6 +386,10 @@ export default function CashierScreen() {
         ? await api.updateTransaction(session.token, editIdParam, payload)
         : await api.createTransaction(session.token, payload);
 
+      if (customerName.trim()) {
+        await saveCustomerLocally(customerName);
+      }
+
       setReceipt(response);
       setCart([]);
       setCustomerName("");
@@ -272,6 +398,7 @@ export default function CashierScreen() {
       setDiscount("0");
       setAmountPaid("0");
       setPaymentMethod("tunai");
+      setCustomerMode("konsumen");
       if (editIdParam) {
         router.replace("/cashier" as Href);
       }
@@ -284,148 +411,248 @@ export default function CashierScreen() {
   };
 
   return (
-    <ScreenShell title="Kasir" subtitle="Tambah barang, jasa, diskon, pembayaran, lalu simpan bon transaksi.">
-      {isEditMode ? (
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
-          <Text style={styles.helperText}>Perubahan transaksi akan otomatis menyesuaikan stok dan status pembayaran.</Text>
-          <ActionButton label="Batal edit" onPress={() => router.replace("/transactions" as Href)} variant="secondary" />
-        </SurfaceCard>
-      ) : null}
+    <>
+      <ScreenShell title="Kasir" subtitle="Pilih mode pelanggan, barang, jasa, lalu proses transaksi dengan ringkas.">
+        {isEditMode ? (
+          <SurfaceCard>
+            <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
+            <Text style={styles.helperText}>Perubahan transaksi akan otomatis menyesuaikan stok dan status pembayaran.</Text>
+            <ActionButton label="Batal edit" onPress={() => router.replace("/transactions" as Href)} variant="secondary" testID="cashier-cancel-edit-button" />
+          </SurfaceCard>
+        ) : null}
 
-      {loadingEditData ? (
-        <SurfaceCard>
-          <Text style={styles.helperText}>Memuat data transaksi untuk diedit...</Text>
-        </SurfaceCard>
-      ) : null}
+        {loadingEditData ? (
+          <SurfaceCard>
+            <Text style={styles.helperText}>Memuat data transaksi untuk diedit...</Text>
+          </SurfaceCard>
+        ) : null}
 
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Informasi transaksi</Text>
-        <FormField label="Nama pelanggan" value={customerName} onChangeText={setCustomerName} testID="cashier-customer-input" />
-        <FormField label="Nama mekanik" value={mechanicName} onChangeText={setMechanicName} testID="cashier-mechanic-input" />
-        <FormField label="Diskon" value={discount} onChangeText={setDiscount} keyboardType="numeric" testID="cashier-discount-input" />
-        <FormField label="Jumlah pembayaran" value={amountPaid} onChangeText={setAmountPaid} keyboardType="numeric" testID="cashier-amount-paid-input" />
-        <FormField label="Catatan" value={notes} onChangeText={setNotes} multiline testID="cashier-notes-input" />
-        <View style={styles.optionGroup}>
-          <Text style={styles.optionLabel}>Metode bayar</Text>
-          <View style={styles.optionRow}>
-            {paymentOptions.map((option) => (
-              <ActionButton
-                key={option}
-                label={option.toUpperCase()}
-                compact
-                onPress={() => setPaymentMethod(option)}
-                variant={paymentMethod === option ? "primary" : "secondary"}
-                testID={`payment-method-${option}`}
-              />
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Data transaksi</Text>
+
+          <Text style={styles.fieldLabel}>Mode pelanggan</Text>
+          <View style={styles.segmentRow}>
+            {customerModes.map((mode) => (
+              <Pressable
+                key={mode.value}
+                onPress={() => setCustomerMode(mode.value)}
+                style={({ pressed }) => [styles.segmentButton, customerMode === mode.value && styles.segmentButtonActive, pressed && styles.segmentPressed]}
+                testID={`cashier-customer-mode-${mode.value}`}
+              >
+                <Text style={[styles.segmentText, customerMode === mode.value && styles.segmentTextActive]}>{mode.label}</Text>
+              </Pressable>
             ))}
           </View>
-        </View>
-        <View style={styles.paymentPreviewCard}>
-          <Text style={styles.optionLabel}>Ringkasan pembayaran</Text>
-          <Text style={styles.paymentStateText}>{paymentStateLabel}</Text>
-          <Text style={styles.helperText}>Dibayar: {formatCurrency(paidAmount)}</Text>
-          <Text style={styles.helperText}>Sisa hutang: {formatCurrency(balanceDue)}</Text>
-          <Text style={styles.helperText}>Kembalian: {formatCurrency(changeDue)}</Text>
-        </View>
-      </SurfaceCard>
 
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Pilih barang</Text>
-        <FormField label="Cari barang" value={search} onChangeText={setSearch} placeholder="Cari nama, kategori, supplier, atau kode barang" testID="inventory-search-input" />
-        <ActionButton label="Muat barang" compact onPress={() => void loadInventory()} variant="secondary" testID="cashier-load-items-button" />
-        {inventoryItems.length === 0 ? (
-          <Text style={styles.helperText}>Belum ada barang. Tambahkan dulu dari menu daftar barang.</Text>
-        ) : (
-          inventoryItems.map((item) => (
-            <View key={item.id} style={styles.listRow}>
-              <View style={styles.flexOne}>
-                <Text style={styles.itemTitle}>{item.name}</Text>
-                <Text style={styles.helperText}>{item.category} • {item.item_code} • stok {item.stock}</Text>
-              </View>
-              <View style={styles.actionStack}>
-                <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
-                <ActionButton label="Tambah" compact onPress={() => addInventoryItem(item)} testID={`add-item-to-cart-button-${item.id}`} />
-              </View>
+          <Text style={styles.fieldLabel}>Pelanggan</Text>
+          <View style={styles.inputActionRow}>
+            <TextInput
+              value={customerName}
+              onChangeText={setCustomerName}
+              placeholder={customerMode === "konsumen" ? "Masukkan nama pelanggan" : "Masukkan nama bengkel pembeli"}
+              placeholderTextColor={colors.textMuted}
+              style={styles.inlineInput}
+              testID="cashier-customer-input"
+            />
+            <Pressable onPress={openCustomerModal} style={({ pressed }) => [styles.addIconButton, pressed && styles.segmentPressed]} testID="cashier-customer-open-modal-button">
+              <Ionicons name="add" size={20} color={colors.surface} />
+            </Pressable>
+          </View>
+          {savedCustomers.length > 0 ? (
+            <View style={styles.chipWrap}>
+              {savedCustomers.map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => setCustomerName(name)}
+                  style={({ pressed }) => [styles.quickChip, pressed && styles.segmentPressed]}
+                  testID={`cashier-saved-customer-${name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <Text style={styles.quickChipText}>{name}</Text>
+                </Pressable>
+              ))}
             </View>
-          ))
-        )}
-      </SurfaceCard>
+          ) : null}
 
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Tambah jasa manual</Text>
-        <FormField label="Nama jasa" value={serviceName} onChangeText={setServiceName} testID="cashier-service-name-input" />
-        <FormField label="Harga jasa" value={servicePrice} onChangeText={setServicePrice} keyboardType="numeric" testID="cashier-service-price-input" />
-        <ActionButton label="Tambah jasa ke keranjang" onPress={addService} variant="secondary" testID="cashier-add-service-button" />
-      </SurfaceCard>
-
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Keranjang transaksi</Text>
-        {cart.length === 0 ? (
-          <Text style={styles.helperText}>Keranjang masih kosong.</Text>
-        ) : (
-          cart.map((line) => (
-            <View key={line.key} style={styles.cartRow}>
-              <View style={styles.flexOne}>
-                <Text style={styles.itemTitle}>{line.name}</Text>
-                <Text style={styles.helperText}>{line.type.toUpperCase()}</Text>
-              </View>
-              <View style={styles.quantityControls}>
-                <ActionButton label="-" compact onPress={() => updateQuantity(line.key, line.quantity - 1)} variant="secondary" />
-                <Text style={styles.quantityText}>{line.quantity}</Text>
-                <ActionButton label="+" compact onPress={() => updateQuantity(line.key, line.quantity + 1)} variant="secondary" />
-              </View>
-              <Text style={styles.priceText}>{formatCurrency(line.unit_price * line.quantity)}</Text>
-            </View>
-          ))
-        )}
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(subtotal)}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Diskon</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(Number(discount || 0))}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.totalLabel}>Total transaksi</Text>
-          <Text style={styles.totalValue} testID="checkout-total-value">{formatCurrency(total)}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Dibayar</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(paidAmount)}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Sisa hutang</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(balanceDue)}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Kembalian</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(changeDue)}</Text>
-        </View>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <ActionButton
-          label={submitting ? (isEditMode ? "Memperbarui transaksi..." : "Menyimpan transaksi...") : (isEditMode ? "Update transaksi" : "Simpan transaksi")}
-          onPress={() => void saveTransaction()}
-          disabled={submitting || cart.length === 0 || loadingEditData}
-          testID="cashier-submit-button"
-        />
-      </SurfaceCard>
-
-      {receipt ? (
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Bon terbaru</Text>
-          <Text style={styles.itemTitle}>{receipt.invoice_number}</Text>
-          <Text style={styles.helperText}>Total {formatCurrency(receipt.total)} • {receipt.payment_state}</Text>
-          <Text style={styles.helperText}>Dibayar {formatCurrency(receipt.amount_paid)}</Text>
-          <Text style={styles.helperText}>Sisa hutang {formatCurrency(receipt.balance_due)} • Kembalian {formatCurrency(receipt.change_due)}</Text>
-          <View style={styles.optionRow}>
-            <ActionButton label="Cetak bon" onPress={() => void shareReceipt()} variant="secondary" />
-            {Platform.OS === "web" ? <ActionButton label="Unduh HTML" onPress={downloadReceipt} /> : null}
+          <Text style={styles.fieldLabel}>Metode pembayaran</Text>
+          <View style={styles.segmentRow}>
+            {paymentOptions.map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setPaymentMethod(option)}
+                style={({ pressed }) => [styles.segmentButton, paymentMethod === option && styles.segmentButtonActive, pressed && styles.segmentPressed]}
+                testID={`payment-method-${option}`}
+              >
+                <Text style={[styles.segmentText, paymentMethod === option && styles.segmentTextActive]}>{option.toUpperCase()}</Text>
+              </Pressable>
+            ))}
           </View>
         </SurfaceCard>
-      ) : null}
-    </ScreenShell>
+
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Pilih barang</Text>
+          <Pressable onPress={() => setShowItemPicker((current) => !current)} style={({ pressed }) => [styles.pickerTrigger, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
+            <View style={styles.pickerIconBox}>
+              <Ionicons name="cart-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.flexOne}>
+              <Text style={styles.itemTitle}>Pilih barang / sparepart</Text>
+              <Text style={styles.helperText}>Harga otomatis mengikuti mode {customerMode}.</Text>
+            </View>
+            <Ionicons name={showItemPicker ? "chevron-up" : "chevron-down"} size={20} color={colors.textMuted} />
+          </Pressable>
+
+          {showItemPicker ? (
+            <>
+              <View style={styles.inputActionRow}>
+                <TextInput
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Cari nama, kode, kategori, supplier"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.inlineInput}
+                  testID="cashier-item-search-input"
+                />
+                <Pressable onPress={() => void loadInventory()} style={({ pressed }) => [styles.refreshButton, pressed && styles.segmentPressed]} testID="cashier-load-items-button">
+                  <Ionicons name="refresh" size={18} color={colors.text} />
+                </Pressable>
+              </View>
+
+              {inventoryItems.length === 0 ? (
+                <Text style={styles.helperText}>Belum ada barang yang cocok. Coba kata kunci lain atau cek stok barang.</Text>
+              ) : (
+                inventoryItems.map((item) => {
+                  const itemPrice = getItemPriceByMode(item);
+                  return (
+                    <View key={item.id} style={styles.inventoryRow}>
+                      <View style={styles.flexOne}>
+                        <Text style={styles.itemTitle}>{item.name}</Text>
+                        <Text style={styles.helperText}>{item.item_code} • stok {item.stock} • {item.unit}</Text>
+                      </View>
+                      <View style={styles.inventoryActionColumn}>
+                        <Text style={styles.priceText}>{formatCurrency(itemPrice)}</Text>
+                        <ActionButton label="Tambah" compact onPress={() => addInventoryItem(item)} disabled={item.stock <= 0} testID={`add-item-to-cart-button-${item.id}`} />
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </>
+          ) : null}
+        </SurfaceCard>
+
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Keranjang</Text>
+          {cart.length === 0 ? (
+            <Text style={styles.helperText}>Belum ada barang atau jasa di keranjang.</Text>
+          ) : (
+            cart.map((line) => {
+              const stockInfo = line.type === "barang" && line.item_id ? inventoryMap[line.item_id]?.stock ?? 0 : null;
+              return (
+                <View key={line.key} style={styles.cartCard}>
+                  <View style={styles.cartTopRow}>
+                    <View style={styles.flexOne}>
+                      <Text style={styles.itemTitle}>{line.name}</Text>
+                      <Text style={styles.helperText}>
+                        {line.type === "barang"
+                          ? `Stok ${stockInfo} • ${formatCurrency(line.unit_price)}`
+                          : `Jasa manual • ${formatCurrency(line.unit_price)}`}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => removeLine(line.key)} style={({ pressed }) => [styles.deleteButton, pressed && styles.segmentPressed]} testID={`cashier-remove-line-${line.key}`}>
+                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.cartBottomRow}>
+                    <View style={styles.qtyControl}>
+                      <Pressable onPress={() => updateQuantity(line, -1)} style={({ pressed }) => [styles.qtyButton, pressed && styles.segmentPressed]} testID={`cashier-decrease-qty-${line.key}`}>
+                        <Ionicons name="remove" size={16} color={colors.text} />
+                      </Pressable>
+                      <Text style={styles.qtyValue} testID={`cashier-qty-${line.key}`}>{line.quantity}</Text>
+                      <Pressable onPress={() => updateQuantity(line, 1)} style={({ pressed }) => [styles.qtyButton, pressed && styles.segmentPressed]} testID={`cashier-increase-qty-${line.key}`}>
+                        <Ionicons name="add" size={16} color={colors.text} />
+                      </Pressable>
+                    </View>
+                    <Text style={styles.priceText} testID={`cashier-line-subtotal-${line.key}`}>{formatCurrency(line.unit_price * line.quantity)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </SurfaceCard>
+
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Input jasa manual</Text>
+          <FormField label="Nama jasa" value={serviceName} onChangeText={setServiceName} testID="cashier-service-name-input" />
+          <FormField label="Harga jasa" value={servicePrice} onChangeText={setServicePrice} keyboardType="numeric" testID="cashier-service-price-input" />
+          <ActionButton label="Tambah jasa" onPress={addService} variant="secondary" testID="cashier-add-service-button" />
+        </SurfaceCard>
+
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Ringkasan transaksi</Text>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total transaksi</Text>
+              <Text style={styles.totalValue} testID="checkout-total-value">{formatCurrency(total)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(subtotal)}</Text>
+            </View>
+          </View>
+
+          <FormField label="Diskon" value={discount} onChangeText={setDiscount} keyboardType="numeric" testID="cashier-discount-input" />
+          <FormField label="Pembayaran" value={amountPaid} onChangeText={setAmountPaid} keyboardType="numeric" testID="cashier-amount-paid-input" />
+
+          <View style={styles.paymentStateCard} testID="cashier-payment-preview-card">
+            <Text style={styles.paymentStateText}>{paymentStateLabel}</Text>
+            <Text style={styles.helperText}>Dibayar: {formatCurrency(paidAmount)}</Text>
+            <Text style={styles.helperText}>Sisa hutang: {formatCurrency(balanceDue)}</Text>
+            <Text style={styles.helperText}>Kembalian: {formatCurrency(changeDue)}</Text>
+          </View>
+
+          {error ? <Text style={styles.errorText} testID="cashier-error-text">{error}</Text> : null}
+
+          <ActionButton
+            label={submitting ? (isEditMode ? "Memperbarui transaksi..." : "Memproses transaksi...") : (isEditMode ? "Update transaksi" : "Proses transaksi")}
+            onPress={() => void saveTransaction()}
+            disabled={submitting || cart.length === 0 || loadingEditData}
+            testID="cashier-submit-button"
+          />
+        </SurfaceCard>
+
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Detail tambahan</Text>
+          <FormField label="Nama mekanik" value={mechanicName} onChangeText={setMechanicName} testID="cashier-mechanic-input" />
+          <FormField label="Catatan" value={notes} onChangeText={setNotes} multiline testID="cashier-notes-input" />
+        </SurfaceCard>
+
+        {receipt ? (
+          <SurfaceCard>
+            <Text style={styles.sectionTitle}>Bon terbaru</Text>
+            <Text style={styles.itemTitle}>{receipt.invoice_number}</Text>
+            <Text style={styles.helperText}>Mode {receipt.customer_mode} • Total {formatCurrency(receipt.total)}</Text>
+            <Text style={styles.helperText}>Dibayar {formatCurrency(receipt.amount_paid)} • {receipt.payment_state}</Text>
+            <View style={styles.segmentRow}>
+              <ActionButton label="Cetak bon" onPress={() => void shareReceipt()} variant="secondary" testID="cashier-share-receipt-button" />
+              {Platform.OS === "web" ? <ActionButton label="Unduh HTML" onPress={downloadReceipt} testID="cashier-download-receipt-button" /> : null}
+            </View>
+          </SurfaceCard>
+        ) : null}
+      </ScreenShell>
+
+      <Modal visible={customerModalVisible} animationType="slide" transparent onRequestClose={() => setCustomerModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <SurfaceCard style={styles.modalCard}>
+            <Text style={styles.sectionTitle}>Simpan pelanggan cepat</Text>
+            <FormField label="Nama pelanggan" value={customerDraft} onChangeText={setCustomerDraft} testID="cashier-customer-modal-input" />
+            <View style={styles.segmentRow}>
+              <ActionButton label="Batal" onPress={() => setCustomerModalVisible(false)} variant="secondary" testID="cashier-customer-modal-cancel" />
+              <ActionButton label="Simpan" onPress={() => void saveCustomerDraft()} testID="cashier-customer-modal-save" />
+            </View>
+          </SurfaceCard>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -435,50 +662,218 @@ const styles = StyleSheet.create({
     fontFamily: typography.headingBold,
     fontSize: 20,
   },
-  optionGroup: {
-    gap: spacing.sm,
-  },
-  optionLabel: {
+  fieldLabel: {
     color: colors.textMuted,
     fontFamily: typography.bodyBold,
     fontSize: 12,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
-  optionRow: {
+  segmentRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
   },
-  paymentPreviewCard: {
-    backgroundColor: colors.background,
+  segmentButton: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    justifyContent: "center",
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  segmentPressed: {
+    opacity: 0.88,
+  },
+  segmentText: {
+    color: colors.text,
+    fontFamily: typography.bodyBold,
+    fontSize: 14,
+  },
+  segmentTextActive: {
+    color: colors.surface,
+  },
+  inputActionRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "center",
+  },
+  inlineInput: {
+    flex: 1,
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    color: colors.text,
+    fontFamily: typography.bodyMedium,
+    fontSize: 15,
+  },
+  addIconButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  quickChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceAlt,
+  },
+  quickChipText: {
+    color: colors.text,
+    fontFamily: typography.bodyBold,
+    fontSize: 13,
+  },
+  pickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+  },
+  pickerIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inventoryRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    padding: spacing.md,
+  },
+  inventoryActionColumn: {
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  cartCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  cartTopRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "flex-start",
+  },
+  cartBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  qtyControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  qtyButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qtyValue: {
+    minWidth: 24,
+    textAlign: "center",
+    color: colors.text,
+    fontFamily: typography.headingBold,
+    fontSize: 16,
+  },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEE2E2",
+  },
+  summaryCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    padding: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceAlt,
+  },
+  paymentStateCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
     padding: spacing.md,
     gap: spacing.xs,
+    backgroundColor: colors.surfaceAlt,
   },
   paymentStateText: {
     color: colors.primary,
     fontFamily: typography.headingBold,
     fontSize: 18,
   },
-  listRow: {
+  summaryRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
     gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
   },
-  cartRow: {
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
+  summaryLabel: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyBold,
+    fontSize: 14,
   },
-  flexOne: {
-    flex: 1,
-    gap: 4,
+  summaryValue: {
+    color: colors.text,
+    fontFamily: typography.headingBold,
+    fontSize: 16,
+  },
+  totalValue: {
+    color: colors.primary,
+    fontFamily: typography.heading,
+    fontSize: 28,
   },
   itemTitle: {
     color: colors.text,
@@ -491,55 +886,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  actionStack: {
-    alignItems: "flex-end",
-    gap: spacing.sm,
-  },
-  quantityControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  quantityText: {
-    minWidth: 28,
-    textAlign: "center",
-    color: colors.text,
-    fontFamily: typography.headingBold,
-    fontSize: 18,
+  flexOne: {
+    flex: 1,
+    gap: 4,
   },
   priceText: {
     color: colors.text,
     fontFamily: typography.headingBold,
     fontSize: 16,
   },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  summaryLabel: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyBold,
-    fontSize: 14,
-  },
-  summaryValue: {
-    color: colors.text,
-    fontFamily: typography.headingBold,
-    fontSize: 16,
-  },
-  totalLabel: {
-    color: colors.text,
-    fontFamily: typography.headingBold,
-    fontSize: 18,
-  },
-  totalValue: {
-    color: colors.primary,
-    fontFamily: typography.heading,
-    fontSize: 28,
-  },
   errorText: {
     color: colors.danger,
     fontFamily: typography.bodyBold,
     fontSize: 14,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+    justifyContent: "flex-end",
+    padding: spacing.lg,
+  },
+  modalCard: {
+    borderRadius: 28,
   },
 });

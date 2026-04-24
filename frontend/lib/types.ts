@@ -97,6 +97,7 @@ export type TransactionRecord = {
   id: string;
   invoice_number: string;
   transaction_date: string;
+  customer_mode: "konsumen" | "bengkel";
   customer_name: string;
   mechanic_name: string;
   notes: string;

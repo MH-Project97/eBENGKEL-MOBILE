@@ -136,6 +136,7 @@
 ##     - "Auth multi-bengkel owner/user dan approval akses"
 ##     - "Isolasi data per bengkel"
 ##     - "UI dashboard/menu/workshop/users setelah redesign"
+##     - "Redesign halaman kasir berdasarkan ilustrasi baru, termasuk mode pelanggan dan ringkasan transaksi"
 ##   stuck_tasks:
 ##     - ""
 ##   test_all: true
@@ -143,3 +144,5 @@
 ## agent_communication:
 ##     - agent: "main"
 ##       message: "Silakan uji alur owner register/login, employee join via workshop ID, login pending sebelum approve, approval di halaman bengkel, switch bengkel owner, isolasi item/transaksi per bengkel, serta verifikasi logout di Menu dan hilangnya hero image pada login/dashboard. Kredensial terbaru ada di /app/memory/test_credentials.md."
+##     - agent: "main"
+##       message: "Tambahan fokus baru: halaman Kasir sudah dirombak mengikuti ilustrasi user. Uji mode pelanggan Konsumen/Bengkel (harga barang harus beda: consumer_price vs workshop_price), input pelanggan + modal simpan pelanggan lokal, picker barang, keranjang dengan qty +/- dan hapus item, input jasa manual, serta ringkasan diskon/pembayaran parsial/hutang/kembalian. File utama: /app/frontend/app/(tabs)/cashier.tsx dan /app/backend/app_main.py."

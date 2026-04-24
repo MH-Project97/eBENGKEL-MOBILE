@@ -1,0 +1,52 @@
+{
+  "summary": "Executed backend+frontend end-to-end regression for cashier redesign and auth playbook checks on public preview URL. Cashier flows passed (customer mode pricing, picker/add, qty +/- and delete, manual service, payment summary, local customer modal save, submit transaction, and edit existing transaction load). One backend auth hardening issue remains on CORS credential policy.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "CORS preflight (OPTIONS /api/auth/login)",
+        "issue": "Public endpoint returns access-control-allow-origin: * and no access-control-allow-credentials=true header in preflight response, not matching credentialed explicit-origin auth playbook requirement.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cashier_redesign_regression.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/artifacts_iter9_load/frontend_load.jpeg",
+    "/app/test_reports/artifacts_iter9_ui_retry/cashier_flow_retry_result.jpeg",
+    "/app/test_reports/artifacts_iter9_ui_mode/mode_price_check.jpeg",
+    "/root/.emergent/automation_output/20260424_043244/console_20260424_043244.log",
+    "/root/.emergent/automation_output/20260424_043527/console_20260424_043527.log",
+    "/root/.emergent/automation_output/20260424_043606/console_20260424_043606.log"
+  ],
+  "action_items": [
+    "Fix ingress/backend CORS behavior for credentialed auth flows: ensure explicit origin reflection and Access-Control-Allow-Credentials=true on preflight and actual responses.",
+    "Optional cleanup: remove temporary UI seed item TEST_UI_MODE_ITEM_9 if not needed.",
+    "Type hygiene: align frontend TransactionPayload with backend (include customer_mode; remove unsupported kartu payment option)."
+  ],
+  "critical_code_review_comments": [
+    "frontend/lib/api.ts TransactionPayload type omits customer_mode while cashier sends it; current cast-to-unknown bypasses type safety.",
+    "frontend/lib/api.ts payment_method union includes 'kartu' but backend accepts only tunai/transfer/qris.",
+    "frontend/lib/api.ts reads EXPO_PUBLIC_BACKEND_URL; project guideline asks EXPO_BACKEND_URL as source-of-truth key."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cashier_redesign_regression.py",
+    "/app/test_reports/iteration_9.json"
+  ],
+  "success_rate": {
+    "backend": "87.5% (7/8 tests passed)",
+    "frontend": "100% for requested cashier redesign flows in final rerun"
+  },
+  "seed_data_creation": "Created TEST_UI_MODE_ITEM_9 via public API to verify UI customer-mode price switching (consumer_price vs workshop_price).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Cashier redesign behaves correctly on mobile viewport 375x667 in public preview: mode switch changes cart price for known differential item; item picker/cart interactions and transaction submit/edit roundtrip work. One unresolved issue is CORS credentials behavior from public edge response.",
+  "rca_of_issue": "RCA: CORS failure is reproducible with OPTIONS /api/auth/login + Origin header to preview domain; response returns wildcard allow-origin and omits allow-credentials, indicating edge/ingress CORS override or mismatch with app middleware expectations. Mitigation: enforce credentialed CORS at edge to mirror app policy (explicit origin + allow credentials)."
+}

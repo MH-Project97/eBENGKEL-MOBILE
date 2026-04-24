@@ -271,10 +271,11 @@ class TransactionLine(TransactionLineInput):
 
 
 class TransactionCreateRequest(BaseModel):
+    customer_mode: Literal["konsumen", "bengkel"] = "konsumen"
     customer_name: str = ""
     mechanic_name: str = ""
     notes: str = ""
-    payment_method: Literal["tunai", "transfer", "kartu", "qris"] = "tunai"
+    payment_method: Literal["tunai", "transfer", "qris"] = "tunai"
     status: Literal["paid", "unpaid"] = "paid"
     discount: float = Field(default=0, ge=0)
     amount_paid: float = Field(default=0, ge=0)
@@ -287,6 +288,7 @@ class TransactionRecord(BaseModel):
     workshop_id: str
     invoice_number: str
     transaction_date: str
+    customer_mode: Literal["konsumen", "bengkel"] = "konsumen"
     customer_name: str
     mechanic_name: str
     notes: str
@@ -358,6 +360,7 @@ def derive_payment_fields(total: float, amount_paid: float) -> dict:
 def normalize_transaction_document(document: dict) -> dict:
     normalized = {**document}
     total = round(float(normalized.get("total", 0)), 2)
+    normalized["customer_mode"] = normalized.get("customer_mode", "konsumen")
     if "amount_paid" not in normalized:
         if normalized.get("status") == "paid":
             normalized["amount_paid"] = total
@@ -664,6 +667,7 @@ async def restore_inventory_stock(previous_lines: list[dict], workshop_id: str, 
 async def build_transaction_lines_and_stock(
     workshop_id: str,
     new_lines: list[TransactionLineInput],
+    customer_mode: Literal["konsumen", "bengkel"],
     previous_lines: Optional[list[dict]] = None,
 ) -> tuple[list[TransactionLine], dict[str, int], float]:
     if not new_lines:
@@ -712,7 +716,7 @@ async def build_transaction_lines_and_stock(
                 raise HTTPException(status_code=400, detail=f"Stok {item['name']} tidak cukup")
             available_stock[item_id] -= line.quantity
             item_name = item["name"]
-            unit_price = float(item["price"])
+            unit_price = float(item["workshop_price"] if customer_mode == "bengkel" else item["consumer_price"])
 
         line_total = round(unit_price * line.quantity, 2)
         subtotal += line_total
@@ -1350,7 +1354,7 @@ async def create_transaction(
         raise HTTPException(status_code=403, detail="Role mekanik tidak bisa membuat transaksi")
 
     workshop_id = current_user["workshop_id"]
-    transaction_lines, inventory_updates, subtotal = await build_transaction_lines_and_stock(workshop_id, payload.lines)
+    transaction_lines, inventory_updates, subtotal = await build_transaction_lines_and_stock(workshop_id, payload.lines, payload.customer_mode)
     total = round(max(subtotal - payload.discount, 0), 2)
     timestamp = now_iso()
     payment_fields = derive_payment_fields(total, payload.amount_paid)
@@ -1360,6 +1364,7 @@ async def create_transaction(
         workshop_id=workshop_id,
         invoice_number=(payload.invoice_number or generate_invoice_number()).strip(),
         transaction_date=timestamp,
+        customer_mode=payload.customer_mode,
         customer_name=payload.customer_name.strip(),
         mechanic_name=payload.mechanic_name.strip(),
         notes=payload.notes.strip(),
@@ -1402,6 +1407,7 @@ async def update_transaction(
     transaction_lines, inventory_updates, subtotal = await build_transaction_lines_and_stock(
         workshop_id,
         payload.lines,
+        payload.customer_mode,
         existing_transaction["lines"],
     )
     total = round(max(subtotal - payload.discount, 0), 2)
@@ -1411,6 +1417,7 @@ async def update_transaction(
         workshop_id=workshop_id,
         invoice_number=(payload.invoice_number or existing_transaction["invoice_number"]).strip(),
         transaction_date=existing_transaction["transaction_date"],
+        customer_mode=payload.customer_mode,
         customer_name=payload.customer_name.strip(),
         mechanic_name=payload.mechanic_name.strip(),
         notes=payload.notes.strip(),
