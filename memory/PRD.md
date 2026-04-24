@@ -52,6 +52,11 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - tombol keluar dipindah ke tab Menu bagian Sistem
   - halaman Detail Bengkel menampilkan ID bengkel, switch bengkel, form profil, approval karyawan, dan tambah bengkel baru
   - halaman Detail Pengguna kini fokus pada anggota aktif bengkel + ubah role/hapus akses
+- Halaman Kasir dirombak mengikuti ilustrasi baru:
+  - mode pelanggan `Konsumen/Bengkel` aktif dan memengaruhi harga barang (`consumer_price` vs `workshop_price`)
+  - input pelanggan kini punya modal simpan cepat ke daftar lokal
+  - picker barang, keranjang dengan qty +/- dan hapus item, jasa manual, dan ringkasan transaksi dibuat ulang dengan layout yang lebih modern
+  - fitur diskon, pembayaran parsial/hutang, dan kembalian tetap dipertahankan
 - Data lama single-bengkel dihapus dari database dan diganti struktur baru multi-bengkel
 - Backend FastAPI lengkap untuk:
   - login, register, profil user aktif
@@ -120,6 +125,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - verifikasi UI tambahan lulus untuk toolbar icon-only dan page info dinamis di halaman Barang
   - self-test backend multi-bengkel lulus untuk owner register, employee pending→approve, create bengkel kedua, switch bengkel, cookie auth, dan isolasi inventori antar bengkel
   - regression test iteration_8 menandai bug register email-kosong + auth hardening gaps; semuanya sudah ditindaklanjuti
+  - regression test iteration_9 untuk redesign kasir lulus untuk seluruh flow kasir baru; tersisa catatan edge-level CORS credentials pada public preflight preview yang tidak memblokir alur bearer-token aplikasi saat ini
 
 ## Backlog Prioritas
 
