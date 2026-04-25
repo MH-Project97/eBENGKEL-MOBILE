@@ -54,8 +54,10 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - halaman Detail Pengguna kini fokus pada anggota aktif bengkel + ubah role/hapus akses
 - Halaman Kasir dirombak mengikuti ilustrasi baru:
   - mode pelanggan `Konsumen/Bengkel` aktif dan memengaruhi harga barang (`consumer_price` vs `workshop_price`)
-  - input pelanggan kini punya modal simpan cepat ke daftar lokal
-  - picker barang, keranjang dengan qty +/- dan hapus item, jasa manual, dan ringkasan transaksi dibuat ulang dengan layout yang lebih modern
+  - pelanggan kini dipilih lewat tombol + popup pencarian dari data bengkel; jika belum ada, pelanggan baru bisa langsung ditambahkan ke data bengkel dan otomatis terpilih
+  - mekanik dipindahkan ke bagian Data Transaksi dan dipilih lewat popup dari data bengkel (gabungan user role mekanik + daftar mekanik manual bengkel)
+  - picker barang kini juga memakai popup pencarian agar nyaman saat data stok banyak
+  - keranjang dengan qty +/- dan hapus item, jasa manual, dan ringkasan transaksi dibuat ulang dengan layout yang lebih modern
   - fitur diskon, pembayaran parsial/hutang, dan kembalian tetap dipertahankan
 - Data lama single-bengkel dihapus dari database dan diganti struktur baru multi-bengkel
 - Backend FastAPI lengkap untuk:

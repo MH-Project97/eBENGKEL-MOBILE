@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { Href } from "expo-router";
@@ -7,6 +6,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -35,7 +35,6 @@ const customerModes: { label: string; value: CustomerMode }[] = [
   { label: "Konsumen", value: "konsumen" },
   { label: "Bengkel", value: "bengkel" },
 ];
-const SAVED_CUSTOMERS_KEY = "cashier-saved-customers";
 
 export default function CashierScreen() {
   const { session } = useAuth();
@@ -45,14 +44,15 @@ export default function CashierScreen() {
   const isEditMode = Boolean(editIdParam);
 
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [search, setSearch] = useState("");
-  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [itemSearch, setItemSearch] = useState("");
+  const [itemModalVisible, setItemModalVisible] = useState(false);
   const [customerMode, setCustomerMode] = useState<CustomerMode>("konsumen");
   const [customerName, setCustomerName] = useState("");
-  const [savedCustomers, setSavedCustomers] = useState<string[]>([]);
   const [customerModalVisible, setCustomerModalVisible] = useState(false);
-  const [customerDraft, setCustomerDraft] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [mechanicName, setMechanicName] = useState("");
+  const [mechanicModalVisible, setMechanicModalVisible] = useState(false);
+  const [mechanicSearch, setMechanicSearch] = useState("");
   const [notes, setNotes] = useState("");
   const [discount, setDiscount] = useState("0");
   const [amountPaid, setAmountPaid] = useState("0");
@@ -61,6 +61,8 @@ export default function CashierScreen() {
   const [servicePrice, setServicePrice] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [receipt, setReceipt] = useState<TransactionRecord | null>(null);
+  const [workshopCustomers, setWorkshopCustomers] = useState<string[]>([]);
+  const [workshopMechanics, setWorkshopMechanics] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loadingEditData, setLoadingEditData] = useState(false);
   const [error, setError] = useState("");
@@ -70,50 +72,28 @@ export default function CashierScreen() {
     [inventoryItems],
   );
 
-  const loadSavedCustomers = useCallback(async () => {
-    try {
-      const raw = await AsyncStorage.getItem(SAVED_CUSTOMERS_KEY);
-      if (!raw) {
-        setSavedCustomers([]);
-        return;
-      }
-      const parsed = JSON.parse(raw) as string[];
-      setSavedCustomers(parsed.filter(Boolean));
-    } catch {
-      setSavedCustomers([]);
-    }
-  }, []);
-
-  const persistSavedCustomers = useCallback(async (names: string[]) => {
-    setSavedCustomers(names);
-    await AsyncStorage.setItem(SAVED_CUSTOMERS_KEY, JSON.stringify(names));
-  }, []);
-
-  const saveCustomerLocally = useCallback(
-    async (name: string) => {
-      const trimmedName = name.trim();
-      if (!trimmedName) {
-        return;
-      }
-      const deduped = [trimmedName, ...savedCustomers.filter((item) => item.toLowerCase() !== trimmedName.toLowerCase())].slice(0, 8);
-      await persistSavedCustomers(deduped);
-    },
-    [persistSavedCustomers, savedCustomers],
-  );
-
-  const loadInventory = useCallback(async () => {
+  const loadInventory = useCallback(async (keyword = "") => {
     if (!session?.token) {
       return;
     }
-    const response = await api.getItems(session.token, search);
+    const response = await api.getItems(session.token, keyword);
     setInventoryItems(response);
-  }, [search, session?.token]);
+  }, [session?.token]);
+
+  const loadWorkshopData = useCallback(async () => {
+    if (!session?.token) {
+      return;
+    }
+    const response = await api.getWorkshop(session.token);
+    setWorkshopCustomers(response.customers);
+    setWorkshopMechanics(response.mechanic_options);
+  }, [session?.token]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadSavedCustomers();
+      void loadWorkshopData();
       void loadInventory();
-    }, [loadInventory, loadSavedCustomers]),
+    }, [loadInventory, loadWorkshopData]),
   );
 
   const loadTransactionForEdit = useCallback(async () => {
@@ -264,18 +244,50 @@ export default function CashierScreen() {
     setCart((current) => current.map((item) => (item.key === line.key ? { ...item, quantity: nextQuantity } : item)));
   };
 
+  const filteredCustomers = useMemo(
+    () => workshopCustomers.filter((name) => name.toLowerCase().includes(customerSearch.trim().toLowerCase())),
+    [customerSearch, workshopCustomers],
+  );
+
+  const filteredMechanics = useMemo(
+    () => workshopMechanics.filter((name) => name.toLowerCase().includes(mechanicSearch.trim().toLowerCase())),
+    [mechanicSearch, workshopMechanics],
+  );
+
   const openCustomerModal = () => {
-    setCustomerDraft(customerName);
+    setCustomerSearch(customerName);
     setCustomerModalVisible(true);
   };
 
-  const saveCustomerDraft = async () => {
-    if (!customerDraft.trim()) {
+  const openMechanicModal = () => {
+    setMechanicSearch(mechanicName);
+    setMechanicModalVisible(true);
+  };
+
+  const openItemModal = () => {
+    setItemSearch("");
+    setItemModalVisible(true);
+    void loadInventory("");
+  };
+
+  const saveCustomerToWorkshop = async () => {
+    if (!session?.token || !customerSearch.trim()) {
       return;
     }
-    await saveCustomerLocally(customerDraft);
-    setCustomerName(customerDraft.trim());
+    await api.addWorkshopCustomer(session.token, customerSearch.trim());
+    await loadWorkshopData();
+    setCustomerName(customerSearch.trim());
     setCustomerModalVisible(false);
+  };
+
+  const saveMechanicToWorkshop = async () => {
+    if (!session?.token || !mechanicSearch.trim()) {
+      return;
+    }
+    await api.addWorkshopMechanic(session.token, mechanicSearch.trim());
+    await loadWorkshopData();
+    setMechanicName(mechanicSearch.trim());
+    setMechanicModalVisible(false);
   };
 
   const buildReceiptHtml = (transaction: TransactionRecord) => `
@@ -386,8 +398,9 @@ export default function CashierScreen() {
         ? await api.updateTransaction(session.token, editIdParam, payload)
         : await api.createTransaction(session.token, payload);
 
-      if (customerName.trim()) {
-        await saveCustomerLocally(customerName);
+      if (customerName.trim() && !workshopCustomers.includes(customerName.trim())) {
+        await api.addWorkshopCustomer(session.token, customerName.trim());
+        await loadWorkshopData();
       }
 
       setReceipt(response);
@@ -445,33 +458,20 @@ export default function CashierScreen() {
           </View>
 
           <Text style={styles.fieldLabel}>Pelanggan</Text>
-          <View style={styles.inputActionRow}>
-            <TextInput
-              value={customerName}
-              onChangeText={setCustomerName}
-              placeholder={customerMode === "konsumen" ? "Masukkan nama pelanggan" : "Masukkan nama bengkel pembeli"}
-              placeholderTextColor={colors.textMuted}
-              style={styles.inlineInput}
-              testID="cashier-customer-input"
-            />
-            <Pressable onPress={openCustomerModal} style={({ pressed }) => [styles.addIconButton, pressed && styles.segmentPressed]} testID="cashier-customer-open-modal-button">
-              <Ionicons name="add" size={20} color={colors.surface} />
-            </Pressable>
-          </View>
-          {savedCustomers.length > 0 ? (
-            <View style={styles.chipWrap}>
-              {savedCustomers.map((name) => (
-                <Pressable
-                  key={name}
-                  onPress={() => setCustomerName(name)}
-                  style={({ pressed }) => [styles.quickChip, pressed && styles.segmentPressed]}
-                  testID={`cashier-saved-customer-${name.toLowerCase().replace(/\s+/g, "-")}`}
-                >
-                  <Text style={styles.quickChipText}>{name}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
+          <Pressable onPress={openCustomerModal} style={({ pressed }) => [styles.selectorButton, pressed && styles.segmentPressed]} testID="cashier-customer-selector-button">
+            <Text style={[styles.selectorText, !customerName && styles.selectorPlaceholder]}>
+              {customerName || (customerMode === "konsumen" ? "Pilih pelanggan" : "Pilih bengkel pembeli")}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+          </Pressable>
+
+          <Text style={styles.fieldLabel}>Mekanik</Text>
+          <Pressable onPress={openMechanicModal} style={({ pressed }) => [styles.selectorButton, pressed && styles.segmentPressed]} testID="cashier-mechanic-selector-button">
+            <Text style={[styles.selectorText, !mechanicName && styles.selectorPlaceholder]}>
+              {mechanicName || "Pilih mekanik"}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+          </Pressable>
 
           <Text style={styles.fieldLabel}>Metode pembayaran</Text>
           <View style={styles.segmentRow}>
@@ -490,7 +490,7 @@ export default function CashierScreen() {
 
         <SurfaceCard>
           <Text style={styles.sectionTitle}>Pilih barang</Text>
-          <Pressable onPress={() => setShowItemPicker((current) => !current)} style={({ pressed }) => [styles.pickerTrigger, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
+          <Pressable onPress={openItemModal} style={({ pressed }) => [styles.pickerTrigger, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
             <View style={styles.pickerIconBox}>
               <Ionicons name="cart-outline" size={22} color={colors.primary} />
             </View>
@@ -498,46 +498,8 @@ export default function CashierScreen() {
               <Text style={styles.itemTitle}>Pilih barang / sparepart</Text>
               <Text style={styles.helperText}>Harga otomatis mengikuti mode {customerMode}.</Text>
             </View>
-            <Ionicons name={showItemPicker ? "chevron-up" : "chevron-down"} size={20} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </Pressable>
-
-          {showItemPicker ? (
-            <>
-              <View style={styles.inputActionRow}>
-                <TextInput
-                  value={search}
-                  onChangeText={setSearch}
-                  placeholder="Cari nama, kode, kategori, supplier"
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.inlineInput}
-                  testID="cashier-item-search-input"
-                />
-                <Pressable onPress={() => void loadInventory()} style={({ pressed }) => [styles.refreshButton, pressed && styles.segmentPressed]} testID="cashier-load-items-button">
-                  <Ionicons name="refresh" size={18} color={colors.text} />
-                </Pressable>
-              </View>
-
-              {inventoryItems.length === 0 ? (
-                <Text style={styles.helperText}>Belum ada barang yang cocok. Coba kata kunci lain atau cek stok barang.</Text>
-              ) : (
-                inventoryItems.map((item) => {
-                  const itemPrice = getItemPriceByMode(item);
-                  return (
-                    <View key={item.id} style={styles.inventoryRow}>
-                      <View style={styles.flexOne}>
-                        <Text style={styles.itemTitle}>{item.name}</Text>
-                        <Text style={styles.helperText}>{item.item_code} • stok {item.stock} • {item.unit}</Text>
-                      </View>
-                      <View style={styles.inventoryActionColumn}>
-                        <Text style={styles.priceText}>{formatCurrency(itemPrice)}</Text>
-                        <ActionButton label="Tambah" compact onPress={() => addInventoryItem(item)} disabled={item.stock <= 0} testID={`add-item-to-cart-button-${item.id}`} />
-                      </View>
-                    </View>
-                  );
-                })
-              )}
-            </>
-          ) : null}
         </SurfaceCard>
 
         <SurfaceCard>
@@ -619,10 +581,8 @@ export default function CashierScreen() {
             testID="cashier-submit-button"
           />
         </SurfaceCard>
-
         <SurfaceCard>
           <Text style={styles.sectionTitle}>Detail tambahan</Text>
-          <FormField label="Nama mekanik" value={mechanicName} onChangeText={setMechanicName} testID="cashier-mechanic-input" />
           <FormField label="Catatan" value={notes} onChangeText={setNotes} multiline testID="cashier-notes-input" />
         </SurfaceCard>
 
@@ -643,12 +603,126 @@ export default function CashierScreen() {
       <Modal visible={customerModalVisible} animationType="slide" transparent onRequestClose={() => setCustomerModalVisible(false)}>
         <View style={styles.modalBackdrop}>
           <SurfaceCard style={styles.modalCard}>
-            <Text style={styles.sectionTitle}>Simpan pelanggan cepat</Text>
-            <FormField label="Nama pelanggan" value={customerDraft} onChangeText={setCustomerDraft} testID="cashier-customer-modal-input" />
-            <View style={styles.segmentRow}>
-              <ActionButton label="Batal" onPress={() => setCustomerModalVisible(false)} variant="secondary" testID="cashier-customer-modal-cancel" />
-              <ActionButton label="Simpan" onPress={() => void saveCustomerDraft()} testID="cashier-customer-modal-save" />
+            <Text style={styles.sectionTitle}>Pilih pelanggan</Text>
+            <TextInput
+              value={customerSearch}
+              onChangeText={setCustomerSearch}
+              placeholder="Cari pelanggan"
+              placeholderTextColor={colors.textMuted}
+              style={styles.inlineInput}
+              testID="cashier-customer-modal-input"
+            />
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList}>
+              {filteredCustomers.map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => {
+                    setCustomerName(name);
+                    setCustomerModalVisible(false);
+                  }}
+                  style={({ pressed }) => [styles.modalOption, pressed && styles.segmentPressed]}
+                  testID={`cashier-customer-option-${name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <Text style={styles.selectorText}>{name}</Text>
+                </Pressable>
+              ))}
+              {filteredCustomers.length === 0 && customerSearch.trim() ? (
+                <ActionButton label={`Tambah pelanggan: ${customerSearch.trim()}`} onPress={() => void saveCustomerToWorkshop()} testID="cashier-add-customer-from-search-button" />
+              ) : null}
+            </ScrollView>
+            <ActionButton label="Tutup" onPress={() => setCustomerModalVisible(false)} variant="secondary" testID="cashier-customer-modal-cancel" />
+          </SurfaceCard>
+        </View>
+      </Modal>
+
+      <Modal visible={mechanicModalVisible} animationType="slide" transparent onRequestClose={() => setMechanicModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <SurfaceCard style={styles.modalCard}>
+            <Text style={styles.sectionTitle}>Pilih mekanik</Text>
+            <TextInput
+              value={mechanicSearch}
+              onChangeText={setMechanicSearch}
+              placeholder="Cari mekanik"
+              placeholderTextColor={colors.textMuted}
+              style={styles.inlineInput}
+              testID="cashier-mechanic-modal-input"
+            />
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList}>
+              {filteredMechanics.map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => {
+                    setMechanicName(name);
+                    setMechanicModalVisible(false);
+                  }}
+                  style={({ pressed }) => [styles.modalOption, pressed && styles.segmentPressed]}
+                  testID={`cashier-mechanic-option-${name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <Text style={styles.selectorText}>{name}</Text>
+                </Pressable>
+              ))}
+              {filteredMechanics.length === 0 && mechanicSearch.trim() ? (
+                <ActionButton label={`Tambah mekanik: ${mechanicSearch.trim()}`} onPress={() => void saveMechanicToWorkshop()} testID="cashier-add-mechanic-from-search-button" />
+              ) : null}
+            </ScrollView>
+            <ActionButton label="Tutup" onPress={() => setMechanicModalVisible(false)} variant="secondary" testID="cashier-mechanic-modal-cancel" />
+          </SurfaceCard>
+        </View>
+      </Modal>
+
+      <Modal visible={itemModalVisible} animationType="slide" transparent onRequestClose={() => setItemModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <SurfaceCard style={styles.modalCard}>
+            <Text style={styles.sectionTitle}>Pilih barang</Text>
+            <View style={styles.inputActionRow}>
+              <TextInput
+                value={itemSearch}
+                onChangeText={setItemSearch}
+                placeholder="Cari nama, kode, kategori, supplier"
+                placeholderTextColor={colors.textMuted}
+                style={styles.inlineInput}
+                testID="cashier-item-search-input"
+              />
+              <Pressable
+                onPress={() => void loadInventory(itemSearch)}
+                style={({ pressed }) => [styles.refreshButton, pressed && styles.segmentPressed]}
+                testID="cashier-load-items-button"
+              >
+                <Ionicons name="search" size={18} color={colors.text} />
+              </Pressable>
             </View>
+
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList}>
+              {inventoryItems.length === 0 ? (
+                <Text style={styles.helperText}>Belum ada barang yang cocok. Coba kata kunci lain atau cek stok barang.</Text>
+              ) : (
+                inventoryItems.map((item) => {
+                  const itemPrice = getItemPriceByMode(item);
+                  return (
+                    <View key={item.id} style={styles.inventoryRow}>
+                      <View style={styles.flexOne}>
+                        <Text style={styles.itemTitle}>{item.name}</Text>
+                        <Text style={styles.helperText}>{item.item_code} • stok {item.stock} • {item.unit}</Text>
+                      </View>
+                      <View style={styles.inventoryActionColumn}>
+                        <Text style={styles.priceText}>{formatCurrency(itemPrice)}</Text>
+                        <ActionButton
+                          label="Tambah"
+                          compact
+                          onPress={() => {
+                            addInventoryItem(item);
+                            setItemModalVisible(false);
+                          }}
+                          disabled={item.stock <= 0}
+                          testID={`add-item-to-cart-button-${item.id}`}
+                        />
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+            <ActionButton label="Tutup" onPress={() => setItemModalVisible(false)} variant="secondary" testID="cashier-item-modal-close-button" />
           </SurfaceCard>
         </View>
       </Modal>
@@ -715,14 +789,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: 15,
   },
-  addIconButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   refreshButton: {
     width: 52,
     height: 52,
@@ -733,23 +799,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  chipWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  quickChip: {
+  selectorButton: {
+    minHeight: 52,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    backgroundColor: colors.surfaceAlt,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
   },
-  quickChipText: {
+  selectorText: {
+    flex: 1,
     color: colors.text,
-    fontFamily: typography.bodyBold,
-    fontSize: 13,
+    fontFamily: typography.bodyMedium,
+    fontSize: 15,
+  },
+  selectorPlaceholder: {
+    color: colors.textMuted,
   },
   pickerTrigger: {
     flexDirection: "row",
@@ -908,5 +977,20 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     borderRadius: 28,
+    maxHeight: "85%",
+  },
+  modalList: {
+    gap: spacing.sm,
+  },
+  modalScroll: {
+    maxHeight: 360,
+  },
+  modalOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    backgroundColor: colors.surfaceAlt,
   },
 });

@@ -214,6 +214,9 @@ class WorkshopDetailResponse(WorkshopProfileBase):
     workshop_code: str
     created_at: str
     updated_at: str
+    customers: list[str] = Field(default_factory=list)
+    manual_mechanics: list[str] = Field(default_factory=list)
+    mechanic_options: list[str] = Field(default_factory=list)
     members: list[WorkshopMember] = Field(default_factory=list)
     pending_members: list[WorkshopMember] = Field(default_factory=list)
     workshops: list[WorkshopAccess] = Field(default_factory=list)
@@ -226,6 +229,10 @@ class MembershipActionRequest(BaseModel):
 
 class WorkshopMemberRoleRequest(BaseModel):
     role: StaffRole
+
+
+class WorkshopNameCreateRequest(BaseModel):
+    name: str
 
 
 class InventoryItemBase(BaseModel):
@@ -427,6 +434,8 @@ async def seed_admin() -> None:
         "address": "",
         "open_hours": "",
         "notes": "",
+        "customers": [],
+        "manual_mechanics": [],
         "created_at": timestamp,
         "updated_at": timestamp,
     }
@@ -774,6 +783,17 @@ async def list_workshop_members(workshop_id: str, status_filter: MembershipStatu
     return members
 
 
+def build_mechanic_options(workshop: dict, members: list[WorkshopMember]) -> list[str]:
+    manual_names = workshop.get("manual_mechanics", [])
+    user_names = [member.full_name for member in members if member.role == "mekanik"]
+    ordered_names: list[str] = []
+    for name in [*user_names, *manual_names]:
+        trimmed = name.strip()
+        if trimmed and trimmed not in ordered_names:
+            ordered_names.append(trimmed)
+    return ordered_names
+
+
 @api_router.get("/")
 async def root() -> dict:
     return {"message": "Bengkel Management API aktif"}
@@ -858,6 +878,8 @@ async def register_user(payload: RegisterRequest, response: Response) -> Registe
         "address": "",
         "open_hours": "",
         "notes": "",
+        "customers": [],
+        "manual_mechanics": [],
         "created_at": created_at,
         "updated_at": created_at,
     }
@@ -996,6 +1018,8 @@ async def create_workshop(
         "address": payload.address.strip(),
         "open_hours": payload.open_hours.strip(),
         "notes": payload.notes.strip(),
+        "customers": [],
+        "manual_mechanics": [],
         "created_at": timestamp,
         "updated_at": timestamp,
     }
@@ -1051,11 +1075,18 @@ async def read_workshop(current_user: dict = Depends(get_current_user)) -> Works
     if not workshop:
         raise HTTPException(status_code=404, detail="Bengkel tidak ditemukan")
 
+    workshop_payload = {
+        **workshop,
+        "customers": workshop.get("customers", []),
+        "manual_mechanics": workshop.get("manual_mechanics", []),
+    }
+
     members = await list_workshop_members(current_user["workshop_id"], "active")
     pending_members = await list_workshop_members(current_user["workshop_id"], "pending")
     accesses = await get_workshop_accesses(current_user["id"], ["active"])
     return WorkshopDetailResponse(
-        **workshop,
+        **workshop_payload,
+        mechanic_options=build_mechanic_options(workshop_payload, members),
         members=members,
         pending_members=pending_members,
         workshops=accesses,
@@ -1082,12 +1113,20 @@ async def update_workshop(
         "notes": payload.notes.strip(),
         "updated_at": now_iso(),
     }
+    updated["customers"] = existing.get("customers", [])
+    updated["manual_mechanics"] = existing.get("manual_mechanics", [])
     await db.workshops.update_one({"id": workshop_id}, {"$set": updated})
 
     members = await list_workshop_members(workshop_id, "active")
     pending_members = await list_workshop_members(workshop_id, "pending")
     accesses = await get_workshop_accesses(manager_user["id"], ["active"])
-    return WorkshopDetailResponse(**updated, members=members, pending_members=pending_members, workshops=accesses)
+    return WorkshopDetailResponse(
+        **updated,
+        mechanic_options=build_mechanic_options(updated, members),
+        members=members,
+        pending_members=pending_members,
+        workshops=accesses,
+    )
 
 
 @api_router.patch("/workshop/members/{membership_id}", response_model=ApiMessage)
@@ -1133,6 +1172,56 @@ async def update_workshop_member(
 
     await db.workshop_memberships.delete_one({"id": membership_id})
     return ApiMessage(message="Akses anggota berhasil dihapus")
+
+
+@api_router.post("/workshop/customers", response_model=ApiMessage)
+async def add_workshop_customer(
+    payload: WorkshopNameCreateRequest,
+    current_user: dict = Depends(get_current_user),
+) -> ApiMessage:
+    customer_name = payload.name.strip()
+    if not customer_name:
+        raise HTTPException(status_code=400, detail="Nama pelanggan wajib diisi")
+
+    workshop = await db.workshops.find_one({"id": current_user["workshop_id"]}, {"_id": 0})
+    if not workshop:
+        raise HTTPException(status_code=404, detail="Bengkel tidak ditemukan")
+
+    customers = workshop.get("customers", [])
+    if customer_name not in customers:
+        customers.append(customer_name)
+        await db.workshops.update_one(
+            {"id": current_user["workshop_id"]},
+            {"$set": {"customers": customers, "updated_at": now_iso()}},
+        )
+    return ApiMessage(message="Pelanggan berhasil disimpan")
+
+
+@api_router.post("/workshop/mechanics", response_model=ApiMessage)
+async def add_workshop_mechanic(
+    payload: WorkshopNameCreateRequest,
+    current_user: dict = Depends(get_current_user),
+) -> ApiMessage:
+    mechanic_name = payload.name.strip()
+    if not mechanic_name:
+        raise HTTPException(status_code=400, detail="Nama mekanik wajib diisi")
+
+    workshop = await db.workshops.find_one({"id": current_user["workshop_id"]}, {"_id": 0})
+    if not workshop:
+        raise HTTPException(status_code=404, detail="Bengkel tidak ditemukan")
+
+    members = await list_workshop_members(current_user["workshop_id"], "active")
+    mechanic_options = build_mechanic_options(workshop, members)
+    if mechanic_name in mechanic_options:
+        return ApiMessage(message="Mekanik sudah tersedia")
+
+    manual_mechanics = workshop.get("manual_mechanics", [])
+    manual_mechanics.append(mechanic_name)
+    await db.workshops.update_one(
+        {"id": current_user["workshop_id"]},
+        {"$set": {"manual_mechanics": manual_mechanics, "updated_at": now_iso()}},
+    )
+    return ApiMessage(message="Mekanik berhasil disimpan")
 
 
 @api_router.get("/users", response_model=list[WorkshopMember])

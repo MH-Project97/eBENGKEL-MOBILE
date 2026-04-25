@@ -58,6 +58,9 @@ export type WorkshopProfile = {
   notes: string;
   created_at: string;
   updated_at: string;
+  customers: string[];
+  manual_mechanics: string[];
+  mechanic_options: string[];
   members: WorkshopMember[];
   pending_members: WorkshopMember[];
   workshops: WorkshopAccess[];

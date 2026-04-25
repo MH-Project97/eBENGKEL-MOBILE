@@ -177,6 +177,20 @@ export const api = {
       body: payload,
     }),
 
+  addWorkshopCustomer: (token: string, name: string) =>
+    request<{ message: string }>("/workshop/customers", {
+      method: "POST",
+      token,
+      body: { name },
+    }),
+
+  addWorkshopMechanic: (token: string, name: string) =>
+    request<{ message: string }>("/workshop/mechanics", {
+      method: "POST",
+      token,
+      body: { name },
+    }),
+
   getItems: (token: string, search = "") =>
     request<InventoryItem[]>(`/items?q=${encodeURIComponent(search)}`, { token }),
 
