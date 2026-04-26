@@ -59,6 +59,8 @@ export default function CashierScreen() {
   const [paymentMethod, setPaymentMethod] = useState<(typeof paymentOptions)[number]>("tunai");
   const [serviceName, setServiceName] = useState("");
   const [servicePrice, setServicePrice] = useState("");
+  const [serviceModalVisible, setServiceModalVisible] = useState(false);
+  const [changeDecisionVisible, setChangeDecisionVisible] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [receipt, setReceipt] = useState<TransactionRecord | null>(null);
   const [workshopCustomers, setWorkshopCustomers] = useState<string[]>([]);
@@ -153,6 +155,12 @@ export default function CashierScreen() {
     );
   }, [customerMode, inventoryMap]);
 
+  useEffect(() => {
+    if (customerMode === "bengkel") {
+      setMechanicName("");
+    }
+  }, [customerMode]);
+
   const subtotal = useMemo(
     () => cart.reduce((total, line) => total + line.unit_price * line.quantity, 0),
     [cart],
@@ -219,6 +227,7 @@ export default function CashierScreen() {
     ]);
     setServiceName("");
     setServicePrice("");
+    setServiceModalVisible(false);
   };
 
   const removeLine = (lineKey: string) => {
@@ -367,7 +376,7 @@ export default function CashierScreen() {
     browser.URL.revokeObjectURL(url);
   };
 
-  const saveTransaction = async () => {
+  const finalizeTransaction = async (changeHandledByCashier: boolean) => {
     if (!session?.token) {
       return;
     }
@@ -375,16 +384,20 @@ export default function CashierScreen() {
     try {
       setSubmitting(true);
       setError("");
-      const derivedStatus: "paid" | "unpaid" = paidAmount >= total ? "paid" : "unpaid";
+      const effectivePaidAmount = changeHandledByCashier ? total : paidAmount;
+      const effectiveNotes = changeHandledByCashier && changeDue > 0
+        ? [notes.trim(), `Kembalian ${formatCurrency(changeDue)} dikembalikan langsung oleh kasir.`].filter(Boolean).join(" | ")
+        : notes;
+      const derivedStatus: "paid" | "unpaid" = effectivePaidAmount >= total ? "paid" : "unpaid";
       const payload = {
         customer_mode: customerMode,
         customer_name: customerName,
         mechanic_name: mechanicName,
-        notes,
+        notes: effectiveNotes,
         payment_method: paymentMethod,
         status: derivedStatus,
         discount: Number(discount || 0),
-        amount_paid: paidAmount,
+        amount_paid: effectivePaidAmount,
         lines: cart.map(({ item_id, type, name, quantity, unit_price }) => ({
           item_id,
           type,
@@ -423,9 +436,17 @@ export default function CashierScreen() {
     }
   };
 
+  const saveTransaction = async () => {
+    if (paidAmount > total) {
+      setChangeDecisionVisible(true);
+      return;
+    }
+    await finalizeTransaction(false);
+  };
+
   return (
     <>
-      <ScreenShell title="Kasir" subtitle="Pilih mode pelanggan, barang, jasa, lalu proses transaksi dengan ringkas.">
+      <ScreenShell title="" subtitle="" hideHeader>
         {isEditMode ? (
           <SurfaceCard>
             <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
@@ -465,13 +486,17 @@ export default function CashierScreen() {
             <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
           </Pressable>
 
-          <Text style={styles.fieldLabel}>Mekanik</Text>
-          <Pressable onPress={openMechanicModal} style={({ pressed }) => [styles.selectorButton, pressed && styles.segmentPressed]} testID="cashier-mechanic-selector-button">
-            <Text style={[styles.selectorText, !mechanicName && styles.selectorPlaceholder]}>
-              {mechanicName || "Pilih mekanik"}
-            </Text>
-            <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
-          </Pressable>
+          {customerMode === "konsumen" ? (
+            <>
+              <Text style={styles.fieldLabel}>Mekanik</Text>
+              <Pressable onPress={openMechanicModal} style={({ pressed }) => [styles.selectorButton, pressed && styles.segmentPressed]} testID="cashier-mechanic-selector-button">
+                <Text style={[styles.selectorText, !mechanicName && styles.selectorPlaceholder]}>
+                  {mechanicName || "Pilih mekanik"}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+              </Pressable>
+            </>
+          ) : null}
 
           <Text style={styles.fieldLabel}>Metode pembayaran</Text>
           <View style={styles.segmentRow}>
@@ -544,9 +569,16 @@ export default function CashierScreen() {
 
         <SurfaceCard>
           <Text style={styles.sectionTitle}>Input jasa manual</Text>
-          <FormField label="Nama jasa" value={serviceName} onChangeText={setServiceName} testID="cashier-service-name-input" />
-          <FormField label="Harga jasa" value={servicePrice} onChangeText={setServicePrice} keyboardType="numeric" testID="cashier-service-price-input" />
-          <ActionButton label="Tambah jasa" onPress={addService} variant="secondary" testID="cashier-add-service-button" />
+          <Pressable onPress={() => setServiceModalVisible(true)} style={({ pressed }) => [styles.pickerTrigger, pressed && styles.segmentPressed]} testID="cashier-service-modal-open-button">
+            <View style={styles.pickerIconBox}>
+              <Ionicons name="construct-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.flexOne}>
+              <Text style={styles.itemTitle}>Tambah jasa manual</Text>
+              <Text style={styles.helperText}>Masukkan jasa yang tidak ada di daftar barang melalui popup.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </Pressable>
         </SurfaceCard>
 
         <SurfaceCard>
@@ -723,6 +755,48 @@ export default function CashierScreen() {
               )}
             </ScrollView>
             <ActionButton label="Tutup" onPress={() => setItemModalVisible(false)} variant="secondary" testID="cashier-item-modal-close-button" />
+          </SurfaceCard>
+        </View>
+      </Modal>
+
+      <Modal visible={serviceModalVisible} animationType="slide" transparent onRequestClose={() => setServiceModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <SurfaceCard style={styles.modalCard}>
+            <Text style={styles.sectionTitle}>Input jasa manual</Text>
+            <FormField label="Nama jasa" value={serviceName} onChangeText={setServiceName} testID="cashier-service-name-input" />
+            <FormField label="Harga jasa" value={servicePrice} onChangeText={setServicePrice} keyboardType="numeric" testID="cashier-service-price-input" />
+            <View style={styles.segmentRow}>
+              <ActionButton label="Tutup" onPress={() => setServiceModalVisible(false)} variant="secondary" testID="cashier-service-modal-cancel" />
+              <ActionButton label="Simpan jasa" onPress={addService} testID="cashier-add-service-button" />
+            </View>
+          </SurfaceCard>
+        </View>
+      </Modal>
+
+      <Modal visible={changeDecisionVisible} animationType="fade" transparent onRequestClose={() => setChangeDecisionVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <SurfaceCard style={styles.modalCard}>
+            <Text style={styles.sectionTitle}>Keputusan kembalian</Text>
+            <Text style={styles.helperText}>Ada kembalian sebesar {formatCurrency(changeDue)}. Pilih apakah kembalian disimpan di transaksi atau sudah dikembalikan langsung oleh kasir.</Text>
+            <View style={styles.segmentRow}>
+              <ActionButton
+                label="Simpan kembalian"
+                variant="secondary"
+                onPress={() => {
+                  setChangeDecisionVisible(false);
+                  void finalizeTransaction(false);
+                }}
+                testID="cashier-store-change-button"
+              />
+              <ActionButton
+                label="Selesai"
+                onPress={() => {
+                  setChangeDecisionVisible(false);
+                  void finalizeTransaction(true);
+                }}
+                testID="cashier-finish-change-button"
+              />
+            </View>
           </SurfaceCard>
         </View>
       </Modal>
