@@ -50,6 +50,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - header dashboard kini menampilkan nama bengkel aktif, nama user, dan role
   - kartu ringkasan "Workshop aktif / ID Bengkel / Akses Bengkel" di dashboard dihapus agar tampilan lebih ringkas
   - tombol keluar dipindah ke tab Menu bagian Sistem
+  - halaman Menu kini dimulai langsung dari daftar card tanpa header judul/subjudul, tanpa card "Bengkel aktif", dan area logout dibuat sangat ringkas (hanya tombol keluar)
   - halaman Detail Bengkel menampilkan ID bengkel, switch bengkel, form profil, approval karyawan, dan tambah bengkel baru
   - halaman Detail Pengguna kini fokus pada anggota aktif bengkel + ubah role/hapus akses
 - Halaman Kasir dirombak mengikuti ilustrasi baru:

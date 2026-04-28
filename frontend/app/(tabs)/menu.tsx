@@ -7,7 +7,6 @@ import { ActionButton } from "../../components/ActionButton";
 import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useAuth } from "../../context/AuthContext";
-import { roleLabels } from "../../lib/role";
 import { colors, spacing, typography } from "../../lib/theme";
 
 const menuSections = [
@@ -30,19 +29,12 @@ const menuSections = [
 
 export default function MenuScreen() {
   const router = useRouter();
-  const { session, signOut } = useAuth();
+  const { signOut } = useAuth();
 
   const toMenuTestID = (label: string) => `menu-item-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
-    <ScreenShell title="Menu" subtitle="Akses cepat untuk pengelolaan bengkel, tim, dan sistem.">
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Bengkel aktif</Text>
-        <Text style={styles.profileTitle} testID="menu-workshop-name">{session?.user.workshop_name}</Text>
-        <Text style={styles.helperText} testID="menu-user-role">{session?.user.full_name} • {roleLabels[session?.user.role ?? "kasir"]}</Text>
-        <Text style={styles.helperText} testID="menu-workshop-code">ID Bengkel: {session?.user.workshop_code}</Text>
-      </SurfaceCard>
-
+    <ScreenShell title="" subtitle="" hideHeader>
       {menuSections.map((section) => (
         <SurfaceCard key={section.title}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -64,8 +56,6 @@ export default function MenuScreen() {
       ))}
 
       <SurfaceCard>
-        <Text style={styles.sectionTitle}>Sistem</Text>
-        <Text style={styles.helperText}>Keluar akun dipindahkan ke sini agar dashboard tetap fokus ke operasional bengkel.</Text>
         <ActionButton label="Keluar" onPress={() => void signOut()} variant="danger" testID="menu-logout-button" />
       </SurfaceCard>
     </ScreenShell>
@@ -105,10 +95,5 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: 14,
     lineHeight: 22,
-  },
-  profileTitle: {
-    color: colors.text,
-    fontFamily: typography.headingBold,
-    fontSize: 22,
   },
 });
