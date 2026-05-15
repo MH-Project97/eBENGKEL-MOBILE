@@ -38,9 +38,11 @@ export function ScreenShell({
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const topPadding = insets.top + (hideHeader ? spacing.xs : spacing.sm);
+  const bottomPadding = insets.bottom + spacing.lg;
   const mergedContentStyle = [
     styles.content,
-    { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl },
+    { paddingTop: topPadding, paddingBottom: bottomPadding },
     !scrollable && styles.contentFill,
     contentStyle,
   ];

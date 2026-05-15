@@ -62,6 +62,8 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - jasa manual kini juga memakai popup agar tampilan utama kasir lebih rapi
   - saat ada uang kembalian, kasir mendapat keputusan `Simpan kembalian / Selesai`; jika dikembalikan langsung oleh kasir maka transaksi disimpan sebagai lunas dan catatan otomatis ditambahkan
   - keranjang dengan qty +/- dan hapus item, serta ringkasan transaksi dibuat ulang dengan layout yang lebih modern
+  - state edit transaksi kasir kini di-reset saat batal edit, sehingga kasir bisa kembali membuat transaksi baru dengan bersih
+  - spacing atas global pada layar berbasis ScreenShell diperkecil agar card/konten mulai lebih rapat dan rapi
   - fitur diskon, pembayaran parsial/hutang, dan kembalian tetap dipertahankan
 - Data lama single-bengkel dihapus dari database dan diganti struktur baru multi-bengkel
 - Backend FastAPI lengkap untuk:

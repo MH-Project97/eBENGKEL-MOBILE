@@ -74,6 +74,30 @@ export default function CashierScreen() {
     [inventoryItems],
   );
 
+  const resetCashierForm = useCallback(() => {
+    setCustomerMode("konsumen");
+    setCustomerName("");
+    setMechanicName("");
+    setNotes("");
+    setDiscount("0");
+    setAmountPaid("0");
+    setPaymentMethod("tunai");
+    setServiceName("");
+    setServicePrice("");
+    setServiceModalVisible(false);
+    setChangeDecisionVisible(false);
+    setItemModalVisible(false);
+    setCustomerModalVisible(false);
+    setMechanicModalVisible(false);
+    setItemSearch("");
+    setCustomerSearch("");
+    setMechanicSearch("");
+    setCart([]);
+    setReceipt(null);
+    setError("");
+    setLoadingEditData(false);
+  }, []);
+
   const loadInventory = useCallback(async (keyword = "") => {
     if (!session?.token) {
       return;
@@ -136,7 +160,12 @@ export default function CashierScreen() {
       if (editIdParam) {
         void loadTransactionForEdit();
       }
-    }, [editIdParam, loadTransactionForEdit]),
+      return () => {
+        if (editIdParam) {
+          resetCashierForm();
+        }
+      };
+    }, [editIdParam, loadTransactionForEdit, resetCashierForm]),
   );
 
   useEffect(() => {
@@ -451,7 +480,15 @@ export default function CashierScreen() {
           <SurfaceCard>
             <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
             <Text style={styles.helperText}>Perubahan transaksi akan otomatis menyesuaikan stok dan status pembayaran.</Text>
-            <ActionButton label="Batal edit" onPress={() => router.replace("/transactions" as Href)} variant="secondary" testID="cashier-cancel-edit-button" />
+            <ActionButton
+              label="Batal edit"
+              onPress={() => {
+                resetCashierForm();
+                router.replace("/transactions" as Href);
+              }}
+              variant="secondary"
+              testID="cashier-cancel-edit-button"
+            />
           </SurfaceCard>
         ) : null}
 
