@@ -3,10 +3,8 @@ import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ActionButton } from "../../components/ActionButton";
 import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
-import { useAuth } from "../../context/AuthContext";
 import { colors, spacing, typography } from "../../lib/theme";
 
 const menuSections = [
@@ -29,7 +27,6 @@ const menuSections = [
 
 export default function MenuScreen() {
   const router = useRouter();
-  const { signOut } = useAuth();
 
   const toMenuTestID = (label: string) => `menu-item-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
@@ -37,27 +34,26 @@ export default function MenuScreen() {
     <ScreenShell title="" subtitle="" hideHeader>
       {menuSections.map((section) => (
         <SurfaceCard key={section.title}>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
-          {section.items.map((item) => (
-            <Pressable
-              key={item.label}
-              onPress={() => router.push(item.route)}
-              testID={toMenuTestID(item.label)}
-              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons name={item.icon} size={22} color={colors.text} />
+          <Text style={styles.sectionTitle} testID={`menu-section-${section.title.toLowerCase()}`}>
+            {section.title}
+          </Text>
+          <View style={styles.gridWrap}>
+            {section.items.map((item) => (
+              <Pressable
+                key={item.label}
+                onPress={() => router.push(item.route)}
+                testID={toMenuTestID(item.label)}
+                style={({ pressed }) => [styles.gridItem, pressed && styles.menuItemPressed]}
+              >
+                <View style={styles.iconWrap}>
+                  <Ionicons name={item.icon} size={28} color={colors.text} />
+                </View>
                 <Text style={styles.menuLabel}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-            </Pressable>
-          ))}
+              </Pressable>
+            ))}
+          </View>
         </SurfaceCard>
       ))}
-
-      <SurfaceCard>
-        <ActionButton label="Keluar" onPress={() => void signOut()} variant="danger" testID="menu-logout-button" />
-      </SurfaceCard>
     </ScreenShell>
   );
 }
@@ -67,33 +63,42 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.headingBold,
     fontSize: 20,
+    marginBottom: spacing.md,
   },
-  menuItem: {
+  gridWrap: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
+    flexWrap: "wrap",
+    gap: spacing.md,
   },
   menuItemPressed: {
     opacity: 0.88,
   },
-  menuItemLeft: {
-    flexDirection: "row",
+  gridItem: {
+    width: "47%",
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     alignItems: "center",
-    gap: spacing.sm,
-    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
   },
   menuLabel: {
     color: colors.text,
     fontFamily: typography.headingBold,
     fontSize: 16,
-  },
-  helperText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 14,
-    lineHeight: 22,
+    textAlign: "center",
   },
 });

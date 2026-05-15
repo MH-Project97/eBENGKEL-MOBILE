@@ -46,6 +46,30 @@ const sortButtonMeta = {
   price: { icon: "cash-outline", label: "Harga" },
 } as const;
 
+const columnOptions = [
+  { key: "code", label: "Kode" },
+  { key: "name", label: "Nama barang" },
+  { key: "stock", label: "Stok" },
+  { key: "unit", label: "Satuan" },
+  { key: "cost", label: "Harga modal" },
+  { key: "workshop", label: "Jual bengkel" },
+  { key: "consumer", label: "Jual konsumen" },
+  { key: "notes", label: "Keterangan" },
+] as const;
+
+type ColumnKey = (typeof columnOptions)[number]["key"];
+
+const defaultVisibleColumns: Record<ColumnKey, boolean> = {
+  code: true,
+  name: true,
+  stock: true,
+  unit: true,
+  cost: true,
+  workshop: true,
+  consumer: true,
+  notes: true,
+};
+
 export default function InventoryScreen() {
   const { session } = useAuth();
   const { height } = useWindowDimensions();
@@ -62,6 +86,8 @@ export default function InventoryScreen() {
   const [sortBy, setSortBy] = useState<"code" | "stock" | "price">("code");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [columnModalVisible, setColumnModalVisible] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(defaultVisibleColumns);
 
   const loadItems = useCallback(async () => {
     if (!session?.token) {
@@ -204,7 +230,12 @@ export default function InventoryScreen() {
     }
   };
 
-  const tableWidth = Object.values(columnWidths).reduce((total, width) => total + width, 0);
+  const visibleTableColumns = useMemo(
+    () => columnOptions.filter((column) => visibleColumns[column.key]),
+    [visibleColumns],
+  );
+  const tableWidth =
+    visibleTableColumns.reduce((total, column) => total + columnWidths[column.key], 0) + columnWidths.action;
   const sortLabel = sortBy === "code" ? "Kode" : sortBy === "stock" ? "Stok" : "Harga";
 
   const toggleSort = (nextSortBy: "code" | "stock" | "price") => {
@@ -215,6 +246,16 @@ export default function InventoryScreen() {
     }
     setSortBy(nextSortBy);
     setSortOrder(nextSortBy === "code" ? "asc" : "desc");
+  };
+
+  const toggleColumnVisibility = (columnKey: ColumnKey) => {
+    setVisibleColumns((current) => {
+      const enabledCount = Object.values(current).filter(Boolean).length;
+      if (current[columnKey] && enabledCount === 1) {
+        return current;
+      }
+      return { ...current, [columnKey]: !current[columnKey] };
+    });
   };
 
   return (
@@ -235,9 +276,10 @@ export default function InventoryScreen() {
               setCurrentPage(1);
             }}
             style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+            hitSlop={6}
             testID="inventory-search-button"
           >
-            <Ionicons name="search" size={18} color={colors.text} />
+            <Ionicons name="search" size={16} color={colors.text} />
           </Pressable>
         </View>
         <View style={styles.sortRow}>
@@ -245,9 +287,10 @@ export default function InventoryScreen() {
             <Pressable
               onPress={openCreateModal}
               style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+              hitSlop={6}
               testID="inventory-add-button"
             >
-              <Ionicons name="add" size={18} color={colors.text} />
+              <Ionicons name="add" size={16} color={colors.text} />
             </Pressable>
           ) : null}
           {(["code", "stock", "price"] as const).map((key) => {
@@ -262,18 +305,28 @@ export default function InventoryScreen() {
                   isActive && styles.activeIconButton,
                   pressed && styles.iconPressed,
                 ]}
+                hitSlop={6}
                 testID={`inventory-sort-${key}`}
               >
-                <Ionicons name={sortButtonMeta[key].icon} size={18} color={iconColor} />
+                <Ionicons name={sortButtonMeta[key].icon} size={16} color={iconColor} />
               </Pressable>
             );
           })}
           <Pressable
+            onPress={() => setColumnModalVisible(true)}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+            hitSlop={6}
+            testID="inventory-column-visibility-button"
+          >
+            <Ionicons name="grid-outline" size={16} color={colors.text} />
+          </Pressable>
+          <Pressable
             onPress={() => void loadItems()}
             style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+            hitSlop={6}
             testID="inventory-refresh-button"
           >
-            <Ionicons name="refresh" size={18} color={colors.text} />
+            <Ionicons name="refresh" size={16} color={colors.text} />
           </Pressable>
         </View>
         <View style={styles.paginationInfoRow}>
@@ -302,14 +355,14 @@ export default function InventoryScreen() {
             >
               <View style={[styles.tableContainer, { width: tableWidth }]}> 
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.headerCell, { width: columnWidths.code }]}>Kode</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.name }]}>Nama</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.stock }]}>Stok</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.unit }]}>Satuan</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.cost }]}>Harga Modal</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.workshop }]}>Jual Bengkel</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.consumer }]}>Jual Konsumen</Text>
-                  <Text style={[styles.headerCell, { width: columnWidths.notes }]}>Keterangan</Text>
+                  {visibleColumns.code ? <Text style={[styles.headerCell, { width: columnWidths.code }]}>Kode</Text> : null}
+                  {visibleColumns.name ? <Text style={[styles.headerCell, { width: columnWidths.name }]}>Nama</Text> : null}
+                  {visibleColumns.stock ? <Text style={[styles.headerCell, { width: columnWidths.stock }]}>Stok</Text> : null}
+                  {visibleColumns.unit ? <Text style={[styles.headerCell, { width: columnWidths.unit }]}>Satuan</Text> : null}
+                  {visibleColumns.cost ? <Text style={[styles.headerCell, { width: columnWidths.cost }]}>Harga Modal</Text> : null}
+                  {visibleColumns.workshop ? <Text style={[styles.headerCell, { width: columnWidths.workshop }]}>Jual Bengkel</Text> : null}
+                  {visibleColumns.consumer ? <Text style={[styles.headerCell, { width: columnWidths.consumer }]}>Jual Konsumen</Text> : null}
+                  {visibleColumns.notes ? <Text style={[styles.headerCell, { width: columnWidths.notes }]}>Keterangan</Text> : null}
                   <Text style={[styles.headerCell, { width: columnWidths.action }]}>Aksi</Text>
                 </View>
 
@@ -325,19 +378,21 @@ export default function InventoryScreen() {
                     const badgeLabel = item.stock <= item.low_stock_threshold ? "Kritis" : item.stock <= item.low_stock_threshold * 2 ? "Menipis" : "Aman";
                     return (
                       <View key={item.id} style={styles.tableRow}>
-                        <Text style={[styles.bodyCell, { width: columnWidths.code }]}>{item.item_code}</Text>
-                        <Text style={[styles.bodyCell, { width: columnWidths.name }]}>{item.name}</Text>
-                        <View style={[styles.stockCell, { width: columnWidths.stock }]}> 
-                          <Text style={[styles.bodyCell, styles.stockValue, item.stock <= item.low_stock_threshold && styles.lowStockText]}>{item.stock}</Text>
-                          <View style={[styles.stockBadge, badgeTone === "danger" ? styles.badgeDanger : badgeTone === "warning" ? styles.badgeWarning : styles.badgeSuccess]}>
-                            <Text style={[styles.stockBadgeText, badgeTone === "warning" && styles.badgeWarningText]}>{badgeLabel}</Text>
+                        {visibleColumns.code ? <Text style={[styles.bodyCell, { width: columnWidths.code }]}>{item.item_code}</Text> : null}
+                        {visibleColumns.name ? <Text style={[styles.bodyCell, { width: columnWidths.name }]}>{item.name}</Text> : null}
+                        {visibleColumns.stock ? (
+                          <View style={[styles.stockCell, { width: columnWidths.stock }]}> 
+                            <Text style={[styles.bodyCell, styles.stockValue, item.stock <= item.low_stock_threshold && styles.lowStockText]}>{item.stock}</Text>
+                            <View style={[styles.stockBadge, badgeTone === "danger" ? styles.badgeDanger : badgeTone === "warning" ? styles.badgeWarning : styles.badgeSuccess]}>
+                              <Text style={[styles.stockBadgeText, badgeTone === "warning" && styles.badgeWarningText]}>{badgeLabel}</Text>
+                            </View>
                           </View>
-                        </View>
-                        <Text style={[styles.bodyCell, { width: columnWidths.unit }]}>{item.unit}</Text>
-                        <Text style={[styles.bodyCell, { width: columnWidths.cost }]}>{formatCurrency(item.cost_price)}</Text>
-                        <Text style={[styles.bodyCell, { width: columnWidths.workshop }]}>{formatCurrency(item.workshop_price)}</Text>
-                        <Text style={[styles.bodyCell, { width: columnWidths.consumer }]}>{formatCurrency(item.consumer_price)}</Text>
-                        <Text style={[styles.bodyCell, { width: columnWidths.notes }]}>{item.notes || "-"}</Text>
+                        ) : null}
+                        {visibleColumns.unit ? <Text style={[styles.bodyCell, { width: columnWidths.unit }]}>{item.unit}</Text> : null}
+                        {visibleColumns.cost ? <Text style={[styles.bodyCell, { width: columnWidths.cost }]}>{formatCurrency(item.cost_price)}</Text> : null}
+                        {visibleColumns.workshop ? <Text style={[styles.bodyCell, { width: columnWidths.workshop }]}>{formatCurrency(item.workshop_price)}</Text> : null}
+                        {visibleColumns.consumer ? <Text style={[styles.bodyCell, { width: columnWidths.consumer }]}>{formatCurrency(item.consumer_price)}</Text> : null}
+                        {visibleColumns.notes ? <Text style={[styles.bodyCell, { width: columnWidths.notes }]}>{item.notes || "-"}</Text> : null}
                         <View style={[styles.actionCell, { width: columnWidths.action }]}> 
                           {isAdmin ? (
                             <ActionButton
@@ -432,6 +487,61 @@ export default function InventoryScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={columnModalVisible}
+        onRequestClose={() => setColumnModalVisible(false)}
+      >
+        <View style={styles.modalBackdropCentered}>
+          <View style={styles.columnModalCard}>
+            <Text style={styles.columnModalTitle} testID="inventory-column-modal-title">
+              Pilih Kolom
+            </Text>
+            <Text style={styles.columnModalCaption} testID="inventory-column-modal-caption">
+              Minimal satu kolom harus tetap aktif.
+            </Text>
+            <View style={styles.columnOptionList}>
+              {columnOptions.map((column) => {
+                const active = visibleColumns[column.key];
+                return (
+                  <Pressable
+                    key={column.key}
+                    onPress={() => toggleColumnVisibility(column.key)}
+                    style={({ pressed }) => [
+                      styles.columnOption,
+                      active && styles.columnOptionActive,
+                      pressed && styles.iconPressed,
+                    ]}
+                    testID={`inventory-column-toggle-${column.key}`}
+                  >
+                    <View style={styles.columnOptionLabelWrap}>
+                      <Ionicons
+                        name={active ? "checkbox-outline" : "square-outline"}
+                        size={18}
+                        color={active ? colors.surface : colors.textMuted}
+                      />
+                      <Text style={[styles.columnOptionLabel, active && styles.columnOptionLabelActive]}>
+                        {column.label}
+                      </Text>
+                    </View>
+                    <Text style={[styles.columnOptionState, active && styles.columnOptionStateActive]}>
+                      {active ? "Tampil" : "Sembunyi"}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <ActionButton
+              label="Selesai"
+              onPress={() => setColumnModalVisible(false)}
+              variant="secondary"
+              testID="inventory-column-modal-close-button"
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   );
 }
@@ -460,6 +570,7 @@ const styles = StyleSheet.create({
   sortRow: {
     flexDirection: "row",
     gap: spacing.xs,
+    flexWrap: "wrap",
   },
   paginationInfoRow: {
     flexDirection: "row",
@@ -480,8 +591,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderWidth: 1,
     borderColor: colors.black,
     backgroundColor: colors.surface,
@@ -625,6 +736,70 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
+  },
+  modalBackdropCentered: {
+    flex: 1,
+    backgroundColor: "rgba(10, 10, 10, 0.35)",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  columnModalCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  columnModalTitle: {
+    color: colors.text,
+    fontFamily: typography.headingBold,
+    fontSize: 22,
+  },
+  columnModalCaption: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyMedium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  columnOptionList: {
+    gap: spacing.sm,
+  },
+  columnOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  columnOptionActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  columnOptionLabelWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    flex: 1,
+  },
+  columnOptionLabel: {
+    color: colors.text,
+    fontFamily: typography.bodyBold,
+    fontSize: 14,
+  },
+  columnOptionLabelActive: {
+    color: colors.surface,
+  },
+  columnOptionState: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyBold,
+    fontSize: 12,
+    textTransform: "uppercase",
+  },
+  columnOptionStateActive: {
+    color: colors.surface,
   },
   modalContent: {
     gap: spacing.md,
