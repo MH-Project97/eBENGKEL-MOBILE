@@ -3,6 +3,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -670,6 +671,7 @@ export default function CashierScreen() {
       </ScreenShell>
 
       <Modal visible={customerModalVisible} animationType="slide" transparent onRequestClose={() => setCustomerModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
           <SurfaceCard style={styles.modalCard}>
             <Text style={styles.sectionTitle}>Pilih pelanggan</Text>
@@ -681,7 +683,7 @@ export default function CashierScreen() {
               style={styles.inlineInput}
               testID="cashier-customer-modal-input"
             />
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList}>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
               {filteredCustomers.map((name) => (
                 <Pressable
                   key={name}
@@ -702,9 +704,11 @@ export default function CashierScreen() {
             <ActionButton label="Tutup" onPress={() => setCustomerModalVisible(false)} variant="secondary" testID="cashier-customer-modal-cancel" />
           </SurfaceCard>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={mechanicModalVisible} animationType="slide" transparent onRequestClose={() => setMechanicModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
           <SurfaceCard style={styles.modalCard}>
             <Text style={styles.sectionTitle}>Pilih mekanik</Text>
@@ -716,7 +720,7 @@ export default function CashierScreen() {
               style={styles.inlineInput}
               testID="cashier-mechanic-modal-input"
             />
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList}>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
               {filteredMechanics.map((name) => (
                 <Pressable
                   key={name}
@@ -737,9 +741,11 @@ export default function CashierScreen() {
             <ActionButton label="Tutup" onPress={() => setMechanicModalVisible(false)} variant="secondary" testID="cashier-mechanic-modal-cancel" />
           </SurfaceCard>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={itemModalVisible} animationType="slide" transparent onRequestClose={() => setItemModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
           <SurfaceCard style={styles.modalCard}>
             <Text style={styles.sectionTitle}>Pilih barang</Text>
@@ -761,7 +767,7 @@ export default function CashierScreen() {
               </Pressable>
             </View>
 
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList}>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
               {inventoryItems.length === 0 ? (
                 <Text style={styles.helperText}>Belum ada barang yang cocok. Coba kata kunci lain atau cek stok barang.</Text>
               ) : (
@@ -794,9 +800,11 @@ export default function CashierScreen() {
             <ActionButton label="Tutup" onPress={() => setItemModalVisible(false)} variant="secondary" testID="cashier-item-modal-close-button" />
           </SurfaceCard>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={serviceModalVisible} animationType="slide" transparent onRequestClose={() => setServiceModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
           <SurfaceCard style={styles.modalCard}>
             <Text style={styles.sectionTitle}>Input jasa manual</Text>
@@ -808,6 +816,7 @@ export default function CashierScreen() {
             </View>
           </SurfaceCard>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={changeDecisionVisible} animationType="fade" transparent onRequestClose={() => setChangeDecisionVisible(false)}>
@@ -1085,6 +1094,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.35)",
     justifyContent: "flex-end",
     padding: spacing.lg,
+  },
+  modalKeyboard: {
+    flex: 1,
   },
   modalCard: {
     borderRadius: 28,

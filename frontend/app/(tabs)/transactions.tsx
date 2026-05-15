@@ -31,7 +31,6 @@ export default function TransactionsScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [selectedCustomerKey, setSelectedCustomerKey] = useState<string | null>(null);
   const [filters, setFilters] = useState(defaultFilters);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [searchDraft, setSearchDraft] = useState("");
@@ -137,7 +136,6 @@ export default function TransactionsScreen() {
       setDeleting(true);
       await api.deleteTransaction(session.token, deleteTargetId);
       setDeleteTargetId(null);
-      setSelectedCustomerKey(null);
       await loadTransactions();
     } finally {
       setDeleting(false);
@@ -158,7 +156,6 @@ export default function TransactionsScreen() {
         <Pressable
           onPress={() => {
             setSearchQuery(searchDraft);
-            setSelectedCustomerKey(null);
           }}
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
           testID="transactions-search-button"
@@ -174,7 +171,6 @@ export default function TransactionsScreen() {
         </Pressable>
         <Pressable
           onPress={() => {
-            setSelectedCustomerKey(null);
             void loadTransactions();
           }}
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
@@ -206,7 +202,6 @@ export default function TransactionsScreen() {
               <ActionButton
                 label="Terapkan"
                 onPress={() => {
-                  setSelectedCustomerKey(null);
                   setFilterModalVisible(false);
                   void loadTransactions();
                 }}
@@ -216,7 +211,6 @@ export default function TransactionsScreen() {
                 label="Reset"
                 onPress={() => {
                   setFilters(defaultFilters);
-                  setSelectedCustomerKey(null);
                   setFilterModalVisible(false);
                   void loadTransactions(defaultFilters);
                 }}
@@ -250,12 +244,11 @@ export default function TransactionsScreen() {
         </SurfaceCard>
       ) : (
         customerGroups.map((group) => {
-          const isExpanded = selectedCustomerKey === group.key;
           return (
             <SurfaceCard key={group.key}>
               <Pressable
-                onPress={() => setSelectedCustomerKey((current) => (current === group.key ? null : group.key))}
-                style={({ pressed }) => [styles.customerCard, isExpanded && styles.customerCardActive, pressed && styles.customerCardPressed]}
+                onPress={() => router.push((`/customer-transactions?customer=${encodeURIComponent(group.key)}` as Href))}
+                style={({ pressed }) => [styles.customerCard, pressed && styles.customerCardPressed]}
                 testID={`customer-summary-${group.key.replace(/\s+/g, "-").toLowerCase()}`}
               >
                 <View style={styles.rowBetween}>
@@ -265,46 +258,9 @@ export default function TransactionsScreen() {
                     <Text style={styles.meta}>Total hutang: {formatCurrency(group.totalDebt)}</Text>
                     <Text style={styles.meta}>Status terakhir: {group.latestPaymentState}</Text>
                   </View>
-                  <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={colors.text} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text} />
                 </View>
               </Pressable>
-
-              {isExpanded ? (
-                <View style={styles.customerDetailPanel}>
-                  <Text style={styles.meta}>Akumulasi belanja: {formatCurrency(group.totalSpent)}</Text>
-                  <Text style={styles.meta}>Sisa hutang aktif: {formatCurrency(group.totalDebt)}</Text>
-                  {group.transactions.map((transaction) => (
-                    <View key={transaction.id} style={styles.detailCard}>
-                      <View style={styles.rowBetween}>
-                        <View style={styles.flexOne}>
-                          <Text style={styles.invoice}>{transaction.invoice_number}</Text>
-                          <Text style={styles.meta}>Mekanik: {transaction.mechanic_name || "-"}</Text>
-                        </View>
-                        <Text style={[styles.status, transaction.balance_due > 0 ? styles.unpaid : styles.paid]}>
-                          {transaction.balance_due > 0 ? "HUTANG" : transaction.change_due > 0 ? "KEMBALIAN" : "LUNAS"}
-                        </Text>
-                      </View>
-                      <Text style={styles.total}>{formatCurrency(transaction.total)}</Text>
-                      <Text style={styles.meta}>Dibayar: {formatCurrency(transaction.amount_paid)}</Text>
-                      <Text style={styles.meta}>Sisa hutang: {formatCurrency(transaction.balance_due)}</Text>
-                      <Text style={styles.meta}>Kembalian: {formatCurrency(transaction.change_due)}</Text>
-                      <Text style={styles.meta}>Metode bayar: {transaction.payment_method.toUpperCase()}</Text>
-                      {transaction.notes ? <Text style={styles.notes}>Catatan: {transaction.notes}</Text> : null}
-                      <View style={styles.lineList}>
-                        {transaction.lines.map((line, index) => (
-                          <Text key={`${transaction.id}-${index}`} style={styles.meta}>
-                            • {line.name} — {line.quantity} x {formatCurrency(line.unit_price)}
-                          </Text>
-                        ))}
-                      </View>
-                      <View style={styles.filterRow}>
-                        <ActionButton label="Edit transaksi" onPress={() => router.push((`/cashier?editId=${transaction.id}` as Href))} variant="secondary" testID={`transactions-edit-${transaction.id}`} />
-                        {isAdmin ? <ActionButton label="Hapus" onPress={() => setDeleteTargetId(transaction.id)} variant="danger" testID={`transactions-delete-${transaction.id}`} /> : null}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
             </SurfaceCard>
           );
         })
@@ -367,10 +323,6 @@ const styles = StyleSheet.create({
   customerCard: {
     gap: 4,
   },
-  customerCardActive: {
-    backgroundColor: colors.background,
-    padding: spacing.md,
-  },
   customerCardPressed: {
     opacity: 0.9,
   },
@@ -378,21 +330,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.headingBold,
     fontSize: 18,
-  },
-  detailCard: {
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-  customerDetailPanel: {
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-  lineList: {
-    gap: 4,
   },
   rowBetween: {
     flexDirection: "row",
@@ -403,39 +340,8 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  invoice: {
-    color: colors.text,
-    fontFamily: typography.headingBold,
-    fontSize: 18,
-  },
   meta: {
     color: colors.textMuted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  total: {
-    color: colors.success,
-    fontFamily: typography.heading,
-    fontSize: 28,
-  },
-  status: {
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    fontFamily: typography.bodyBold,
-    fontSize: 12,
-  },
-  paid: {
-    color: colors.success,
-    borderColor: colors.success,
-  },
-  unpaid: {
-    color: colors.danger,
-    borderColor: colors.danger,
-  },
-  notes: {
-    color: colors.text,
     fontFamily: typography.bodyMedium,
     fontSize: 14,
     lineHeight: 20,
