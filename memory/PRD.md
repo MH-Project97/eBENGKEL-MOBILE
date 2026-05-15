@@ -138,10 +138,20 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - regression test iteration_8 menandai bug register email-kosong + auth hardening gaps; semuanya sudah ditindaklanjuti
   - regression test iteration_9 untuk redesign kasir lulus untuk seluruh flow kasir baru; tersisa catatan edge-level CORS credentials pada public preflight preview yang tidak memblokir alur bearer-token aplikasi saat ini
 
+### 2026-05-15
+- Penyempurnaan UI halaman Barang dan Menu selesai:
+  - toolbar halaman Barang diperkecil lagi agar lebih padat di layar mobile
+  - tombol `Kolom` ditambahkan sebelum tombol refresh untuk memilih kolom tabel yang tampil/sembunyi
+  - modal pemilihan kolom mendukung toggle cepat untuk kode, nama, stok, satuan, harga modal, harga bengkel, harga konsumen, dan keterangan
+  - halaman Menu diubah dari list vertikal menjadi grid ikon kotak 2 kolom yang lebih rapi
+  - tombol `Keluar` dihapus dari tab Menu dan dipindahkan ke halaman `Pengaturan > Sistem`
+- Verifikasi UI tambahan:
+  - pengecekan visual Menu grid, tombol logout di Pengaturan, dan modal pilihan kolom Barang lulus via screenshot preview lokal web
+
 ## Backlog Prioritas
 
 ### P0
-- Isi halaman placeholder di tab Menu: Pengaturan dan Tentang
+- Lengkapi isi halaman Pengaturan dan Tentang agar lebih fungsional dari sekadar informasi statis
 - Tambah selector/indikator bengkel aktif yang lebih menonjol di luar halaman Detail Bengkel bila diperlukan
 - Tambah retest penuh setelah perubahan auth multi-bengkel
 
@@ -157,6 +167,6 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Preferensi tema, notifikasi, dan personalisasi UI
 
 ## Next Tasks
-- Isi halaman Pengaturan dan Tentang
+- Lengkapi halaman Pengaturan dan Tentang
 - Tambahkan analytics dashboard per periode bengkel aktif
 - Tambahkan laporan omzet mingguan/bulanan dan ringkasan mekanik per bengkel
