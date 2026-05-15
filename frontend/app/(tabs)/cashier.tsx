@@ -552,17 +552,17 @@ export default function CashierScreen() {
         </SurfaceCard>
 
         <SurfaceCard>
-          <Text style={styles.sectionTitle}>Pilih barang</Text>
-          <Pressable onPress={openItemModal} style={({ pressed }) => [styles.pickerTrigger, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
-            <View style={styles.pickerIconBox}>
-              <Ionicons name="cart-outline" size={22} color={colors.primary} />
-            </View>
-            <View style={styles.flexOne}>
-              <Text style={styles.itemTitle}>Pilih barang / sparepart</Text>
-              <Text style={styles.helperText}>Harga otomatis mengikuti mode {customerMode}.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </Pressable>
+          <Text style={styles.sectionTitle}>Transaksi</Text>
+          <View style={styles.transactionActionRow}>
+            <Pressable onPress={openItemModal} style={({ pressed }) => [styles.transactionButton, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
+              <Ionicons name="cart-outline" size={18} color={colors.primary} />
+              <Text style={styles.transactionButtonText}>Pilih barang/sparepart</Text>
+            </Pressable>
+            <Pressable onPress={() => setServiceModalVisible(true)} style={({ pressed }) => [styles.transactionButton, pressed && styles.segmentPressed]} testID="cashier-service-modal-open-button">
+              <Ionicons name="construct-outline" size={18} color={colors.primary} />
+              <Text style={styles.transactionButtonText}>Tambah jasa manual</Text>
+            </Pressable>
+          </View>
         </SurfaceCard>
 
         <SurfaceCard>
@@ -603,20 +603,6 @@ export default function CashierScreen() {
               );
             })
           )}
-        </SurfaceCard>
-
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Input jasa manual</Text>
-          <Pressable onPress={() => setServiceModalVisible(true)} style={({ pressed }) => [styles.pickerTrigger, pressed && styles.segmentPressed]} testID="cashier-service-modal-open-button">
-            <View style={styles.pickerIconBox}>
-              <Ionicons name="construct-outline" size={22} color={colors.primary} />
-            </View>
-            <View style={styles.flexOne}>
-              <Text style={styles.itemTitle}>Tambah jasa manual</Text>
-              <Text style={styles.helperText}>Masukkan jasa yang tidak ada di daftar barang melalui popup.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </Pressable>
         </SurfaceCard>
 
         <SurfaceCard>
@@ -865,17 +851,19 @@ const styles = StyleSheet.create({
   },
   segmentRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: spacing.sm,
   },
   segmentButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
+    flex: 1,
+    minHeight: 38,
+    paddingHorizontal: spacing.sm,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
     justifyContent: "center",
+    alignItems: "center",
   },
   segmentButtonActive: {
     backgroundColor: colors.primary,
@@ -887,7 +875,8 @@ const styles = StyleSheet.create({
   segmentText: {
     color: colors.text,
     fontFamily: typography.bodyBold,
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: "center",
   },
   segmentTextActive: {
     color: colors.surface,
@@ -899,7 +888,7 @@ const styles = StyleSheet.create({
   },
   inlineInput: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 16,
@@ -910,8 +899,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   refreshButton: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 16,
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
@@ -920,7 +909,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   selectorButton: {
-    minHeight: 52,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 16,
@@ -949,6 +938,28 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: spacing.md,
     backgroundColor: colors.surfaceAlt,
+  },
+  transactionActionRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  transactionButton: {
+    flex: 1,
+    minHeight: 50,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+  },
+  transactionButtonText: {
+    color: colors.text,
+    fontFamily: typography.bodyBold,
+    fontSize: 12,
+    textAlign: "center",
   },
   pickerIconBox: {
     width: 44,

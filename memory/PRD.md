@@ -66,6 +66,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - spacing atas global pada layar berbasis ScreenShell diperkecil agar card/konten mulai lebih rapat dan rapi
   - popup pelanggan/mekanik/barang/jasa di kasir kini lebih aman untuk Android saat keyboard terbuka
   - halaman Transaksi tidak lagi memanjang membuka detail di card pelanggan; klik pelanggan sekarang membuka halaman baru berisi seluruh riwayat transaksi pelanggan dalam bentuk card, urutan terbaru di atas, plus ringkasan jumlah transaksi dan total belanja
+  - card `Pilih barang` dan `Input jasa manual` di kasir kini digabung menjadi satu card `Transaksi` dengan dua tombol 50:50, keterangan tambahan dihapus, tombol mode pelanggan dibuat sama besar dan rata, serta skala tombol diperkecil lagi agar layout lebih padat
   - fitur diskon, pembayaran parsial/hutang, dan kembalian tetap dipertahankan
 - Data lama single-bengkel dihapus dari database dan diganti struktur baru multi-bengkel
 - Backend FastAPI lengkap untuk:

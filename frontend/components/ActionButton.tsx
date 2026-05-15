@@ -71,14 +71,14 @@ export function ActionButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 52,
+    minHeight: 48,
     borderWidth: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
     borderRadius: 16,
   },
   compact: {
-    minHeight: 44,
+    minHeight: 40,
     paddingHorizontal: spacing.md,
   },
   primary: {
