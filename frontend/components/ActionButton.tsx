@@ -1,4 +1,5 @@
 import { PropsWithChildren } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
@@ -52,6 +53,14 @@ export function ActionButton({
           pressed && !disabled && styles.pressed,
         ]}
       >
+        {isPrimary ? (
+          <LinearGradient
+            colors={[colors.gradientStart, colors.gradientEnd]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.primaryGradient}
+          />
+        ) : null}
         <View style={styles.content}>
           {children}
           <Text
@@ -75,7 +84,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    borderRadius: 16,
+    borderRadius: 18,
+    overflow: "hidden",
   },
   compact: {
     minHeight: 40,
@@ -86,7 +96,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   secondary: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
   },
   danger: {
@@ -99,11 +109,15 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.95,
   },
+  primaryGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
   content: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
+    zIndex: 1,
   },
   label: {
     color: colors.text,

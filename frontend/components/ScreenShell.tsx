@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   title: {
-    color: colors.text,
+    color: colors.primary,
     fontFamily: typography.heading,
     fontSize: 30,
     lineHeight: 36,

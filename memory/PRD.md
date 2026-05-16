@@ -148,6 +148,19 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Verifikasi UI tambahan:
   - pengecekan visual Menu grid, tombol logout di Pengaturan, dan modal pilihan kolom Barang lulus via screenshot preview lokal web
 
+### 2026-05-16
+- Redesign auth dan penyelarasan tema aplikasi:
+  - halaman Login dirombak mengikuti referensi baru: kartu putih besar, ikon biru, judul biru, input clean, dan tombol gradient biru-ungu
+  - halaman Register kini memakai tema yang sama dengan toggle `Pemilik Bengkel / Karyawan`
+  - field register disederhanakan sesuai alur baru: username, nama lengkap, password, email, lalu `Nama Bengkel` atau `ID Bengkel` tergantung tipe akun
+  - pilihan role saat karyawan daftar dihapus dari UI; backend tetap menerima pendaftaran karyawan tanpa pilihan role dari form
+  - warna global aplikasi digeser ke tema biru-putih agar Dashboard, Kasir, Menu, Barang, dan layar lain terasa seragam
+- Perbaikan alur Kasir:
+  - setiap kali tab Kasir dibuka kembali dalam mode transaksi baru, form kasir otomatis di-reset agar sisa draft transaksi tidak terbawa
+- Verifikasi tambahan:
+  - screenshot lokal lulus untuk Login baru, Register baru, Dashboard/Menu/Kasir bertema baru, dan reset form Kasir saat pindah tab
+  - self-test backend lulus untuk register karyawan tanpa role dari frontend payload
+
 ## Backlog Prioritas
 
 ### P0
@@ -168,5 +181,6 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 
 ## Next Tasks
 - Lengkapi halaman Pengaturan dan Tentang
+- Terapkan polish visual tambahan ke halaman Detail Bengkel, Detail Pengguna, dan Transaksi agar setara dengan tema auth baru
 - Tambahkan analytics dashboard per periode bengkel aktif
 - Tambahkan laporan omzet mingguan/bulanan dan ringkasan mekanik per bengkel

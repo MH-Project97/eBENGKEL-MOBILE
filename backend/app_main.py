@@ -155,7 +155,7 @@ class RegisterRequest(BaseModel):
     email: Optional[EmailStr] = None
     workshop_name: Optional[str] = None
     workshop_code: Optional[str] = None
-    requested_role: StaffRole = "kasir"
+    requested_role: Optional[StaffRole] = None
 
 
 class RegisterResponse(BaseModel):
@@ -840,7 +840,7 @@ async def register_user(payload: RegisterRequest, response: Response) -> Registe
             "id": str(uuid.uuid4()),
             "user_id": user_id,
             "workshop_id": workshop["id"],
-            "role": payload.requested_role,
+            "role": payload.requested_role or "kasir",
             "status": "pending",
             "created_at": created_at,
             "updated_at": created_at,

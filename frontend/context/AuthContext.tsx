@@ -12,7 +12,6 @@ type RegisterPayload = {
   email?: string;
   workshop_name?: string;
   workshop_code?: string;
-  requested_role?: "admin" | "kasir" | "mekanik";
 };
 
 type AuthContextValue = {

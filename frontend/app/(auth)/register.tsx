@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -29,7 +30,6 @@ export default function RegisterScreen() {
     email: "",
     workshop_name: "",
     workshop_code: "",
-    requested_role: "kasir" as "admin" | "kasir" | "mekanik",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,7 +52,6 @@ export default function RegisterScreen() {
         email: form.email || undefined,
         workshop_name: form.account_type === "owner" ? form.workshop_name : undefined,
         workshop_code: form.account_type === "employee" ? form.workshop_code : undefined,
-        requested_role: form.account_type === "employee" ? form.requested_role : undefined,
       });
       if (response.requires_approval) {
         setInfo(response.message);
@@ -75,23 +74,50 @@ export default function RegisterScreen() {
         showsVerticalScrollIndicator={false}
       >
         <SurfaceCard style={styles.card}>
-          <Text style={styles.title}>Registrasi pengguna baru</Text>
-          <Text style={styles.subtitle}>Pilih daftar sebagai pemilik bengkel atau karyawan yang ingin bergabung lewat ID bengkel.</Text>
-          <View style={styles.segmentRow}>
-            <ActionButton
-              label="Pemilik Bengkel"
-              compact
-              onPress={() => updateField("account_type", "owner")}
-              variant={form.account_type === "owner" ? "primary" : "secondary"}
-              testID="register-type-owner"
-            />
-            <ActionButton
-              label="User/Karyawan"
-              compact
-              onPress={() => updateField("account_type", "employee")}
-              variant={form.account_type === "employee" ? "primary" : "secondary"}
-              testID="register-type-employee"
-            />
+          <View style={styles.brandBlock}>
+            <View style={styles.logoBadge}>
+              <Ionicons name="construct-outline" size={40} color={colors.surface} />
+            </View>
+            <Text style={styles.title} testID="register-screen-title">
+              {form.account_type === "owner" ? "Daftar Bengkel Baru" : "Daftar Karyawan Baru"}
+            </Text>
+            <Text style={styles.subtitle} testID="register-screen-subtitle">
+              {form.account_type === "owner"
+                ? "Mulai digitalisasi bengkel Anda"
+                : "Gabung ke bengkel dengan ID bengkel yang diberikan pemilik"}
+            </Text>
+          </View>
+
+          <View style={styles.accountTypeCard}>
+            <Text style={styles.accountTypeLabel} testID="register-account-type-label">Pilih jenis akun</Text>
+            <View style={styles.segmentRow}>
+              <Pressable
+                onPress={() => updateField("account_type", "owner")}
+                style={({ pressed }) => [
+                  styles.segmentButton,
+                  form.account_type === "owner" && styles.segmentButtonActive,
+                  pressed && styles.segmentPressed,
+                ]}
+                testID="register-type-owner"
+              >
+                <Text style={[styles.segmentText, form.account_type === "owner" && styles.segmentTextActive]}>
+                  Pemilik Bengkel
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => updateField("account_type", "employee")}
+                style={({ pressed }) => [
+                  styles.segmentButton,
+                  form.account_type === "employee" && styles.segmentButtonActive,
+                  pressed && styles.segmentPressed,
+                ]}
+                testID="register-type-employee"
+              >
+                <Text style={[styles.segmentText, form.account_type === "employee" && styles.segmentTextActive]}>
+                  Karyawan
+                </Text>
+              </Pressable>
+            </View>
           </View>
           <FormField
             label="Username"
@@ -114,11 +140,12 @@ export default function RegisterScreen() {
             testID="register-password-input"
           />
           <FormField
-            label="Email (opsional)"
+            label="Email"
             value={form.email}
             onChangeText={(value) => updateField("email", value)}
             autoCapitalize="none"
             keyboardType="email-address"
+            placeholder="Boleh dikosongkan"
             testID="register-email-input"
           />
           {form.account_type === "owner" ? (
@@ -131,30 +158,22 @@ export default function RegisterScreen() {
           ) : (
             <>
               <FormField
-                label="ID Bengkel (18 karakter)"
+                label="ID Bengkel"
                 value={form.workshop_code}
                 onChangeText={(value) => updateField("workshop_code", value.toUpperCase())}
                 autoCapitalize="characters"
+                placeholder="Masukkan ID bengkel"
                 testID="register-workshop-code-input"
               />
-              <View style={styles.segmentRow}>
-                {(["admin", "kasir", "mekanik"] as const).map((role) => (
-                  <ActionButton
-                    key={role}
-                    label={role.toUpperCase()}
-                    compact
-                    onPress={() => updateField("requested_role", role)}
-                    variant={form.requested_role === role ? "primary" : "secondary"}
-                    testID={`register-role-${role}`}
-                  />
-                ))}
-              </View>
+              <Text style={styles.helperText} testID="register-employee-helper-text">
+                Role karyawan akan diatur pemilik bengkel setelah pendaftaran.
+              </Text>
             </>
           )}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error} testID="register-error-text">{error}</Text> : null}
           {info ? <Text style={styles.info} testID="register-info-message">{info}</Text> : null}
           <ActionButton
-            label={loading ? "Menyimpan..." : form.account_type === "owner" ? "Daftar dan Masuk" : "Kirim Permintaan Gabung"}
+            label={loading ? "Menyimpan..." : "Daftar  →"}
             onPress={handleRegister}
             testID="register-submit-button"
           >
@@ -165,7 +184,7 @@ export default function RegisterScreen() {
             style={styles.linkButton}
             testID="go-login-button"
           >
-            <Text style={styles.linkText}>Sudah punya akun? Kembali ke login</Text>
+            <Text style={styles.linkText}>Sudah punya akun? Masuk di sini</Text>
           </Pressable>
         </SurfaceCard>
       </ScrollView>
@@ -184,33 +203,102 @@ const styles = StyleSheet.create({
     minHeight: "100%",
   },
   card: {
+    gap: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl,
+  },
+  brandBlock: {
+    alignItems: "center",
     gap: spacing.md,
+  },
+  logoBadge: {
+    width: 116,
+    height: 116,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  accountTypeCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  accountTypeLabel: {
+    color: colors.text,
+    fontFamily: typography.bodyBold,
+    fontSize: 14,
   },
   segmentRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: spacing.sm,
   },
-  title: {
+  segmentButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  segmentPressed: {
+    opacity: 0.88,
+  },
+  segmentText: {
     color: colors.text,
+    fontFamily: typography.bodyBold,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  segmentTextActive: {
+    color: colors.surface,
+  },
+  title: {
+    color: colors.primary,
     fontFamily: typography.heading,
-    fontSize: 28,
+    fontSize: 32,
+    textAlign: "center",
   },
   subtitle: {
     color: colors.textMuted,
     fontFamily: typography.bodyMedium,
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 22,
+    textAlign: "center",
+  },
+  helperText: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+    lineHeight: 20,
   },
   error: {
     color: colors.danger,
     fontFamily: typography.bodyBold,
     fontSize: 14,
+    textAlign: "center",
   },
   info: {
     color: colors.success,
     fontFamily: typography.bodyBold,
     fontSize: 14,
+    textAlign: "center",
   },
   linkButton: {
     minHeight: 44,
@@ -218,8 +306,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   linkText: {
-    color: colors.primary,
+    color: colors.textMuted,
     fontFamily: typography.bodyBold,
     fontSize: 14,
+    textAlign: "center",
   },
 });

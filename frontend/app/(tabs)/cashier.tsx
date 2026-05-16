@@ -118,9 +118,12 @@ export default function CashierScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!editIdParam) {
+        resetCashierForm();
+      }
       void loadWorkshopData();
       void loadInventory();
-    }, [loadInventory, loadWorkshopData]),
+    }, [editIdParam, loadInventory, loadWorkshopData, resetCashierForm]),
   );
 
   const loadTransactionForEdit = useCallback(async () => {
@@ -1031,7 +1034,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEE2E2",
+    backgroundColor: colors.primarySoft,
   },
   summaryCard: {
     borderWidth: 1,

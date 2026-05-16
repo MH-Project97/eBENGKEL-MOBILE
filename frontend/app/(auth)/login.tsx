@@ -22,8 +22,8 @@ import { colors, spacing, typography } from "../../lib/theme";
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const router = useRouter();
-  const [username, setUsername] = useState("ownerdemo");
-  const [password, setPassword] = useState("owner123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -50,15 +50,14 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <SurfaceCard style={styles.card}>
-          <View style={styles.brandRow} testID="login-brand-block">
+          <View style={styles.brandBlock} testID="login-brand-block">
             <View style={styles.logoBadge}>
-              <Ionicons name="construct-outline" size={28} color={colors.surface} />
+              <Ionicons name="construct-outline" size={40} color={colors.surface} />
             </View>
-            <View style={styles.brandTextWrap}>
-              <Text style={styles.kicker}>Multi bengkel</Text>
-              <Text style={styles.title}>Masuk ke sistem bengkel</Text>
-              <Text style={styles.subtitle}>Pantau cabang, stok, transaksi, dan tim dari satu alur kerja yang rapi.</Text>
-            </View>
+            <Text style={styles.title} testID="login-screen-title">Masuk ke Sistem</Text>
+            <Text style={styles.subtitle} testID="login-screen-subtitle">
+              Kelola bengkel Anda dengan mudah
+            </Text>
           </View>
           <FormField
             label="Username"
@@ -74,22 +73,16 @@ export default function LoginScreen() {
             secureTextEntry
             testID="login-password-input"
           />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <ActionButton label={loading ? "Memproses..." : "Masuk"} onPress={handleLogin} testID="login-submit-button">
+          {error ? <Text style={styles.error} testID="login-error-text">{error}</Text> : null}
+          <ActionButton label={loading ? "Memproses..." : "Masuk  →"} onPress={handleLogin} testID="login-submit-button">
             {loading ? <ActivityIndicator color={colors.surface} size="small" /> : null}
           </ActionButton>
-          <View style={styles.demoBox}>
-            <Text style={styles.demoTitle}>Akun demo cepat</Text>
-            <Text style={styles.demoText}>ownerdemo / owner123</Text>
-            <Text style={styles.demoText}>staffdemo / staff123</Text>
-            <Text style={styles.demoText}>staffdemo aktif setelah disetujui owner/admin</Text>
-          </View>
           <Pressable
             onPress={() => router.push("/register" as Href)}
             style={styles.linkButton}
             testID="go-register-button"
           >
-            <Text style={styles.linkText}>Belum punya akun? Daftar sekarang</Text>
+            <Text style={styles.linkText}>Belum punya akun? Daftar di sini</Text>
           </Pressable>
         </SurfaceCard>
       </ScrollView>
@@ -109,63 +102,45 @@ const styles = StyleSheet.create({
     minHeight: "100%",
   },
   card: {
-    gap: spacing.md,
+    gap: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl,
   },
-  brandRow: {
-    flexDirection: "row",
+  brandBlock: {
+    alignItems: "center",
     gap: spacing.md,
-    alignItems: "flex-start",
   },
   logoBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 116,
+    height: 116,
+    borderRadius: 30,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  brandTextWrap: {
-    flex: 1,
-    gap: 4,
-  },
-  kicker: {
-    color: colors.accent,
-    fontFamily: typography.bodyBold,
-    fontSize: 12,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   title: {
-    color: colors.text,
+    color: colors.primary,
     fontFamily: typography.heading,
-    fontSize: 30,
+    fontSize: 34,
+    textAlign: "center",
   },
   subtitle: {
     color: colors.textMuted,
     fontFamily: typography.bodyMedium,
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 22,
+    textAlign: "center",
   },
   error: {
     color: colors.danger,
     fontFamily: typography.bodyBold,
     fontSize: 14,
-  },
-  demoBox: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    gap: spacing.xs,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
-  },
-  demoTitle: {
-    color: colors.text,
-    fontFamily: typography.bodyBold,
-    fontSize: 14,
-  },
-  demoText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
+    textAlign: "center",
   },
   linkButton: {
     minHeight: 44,
@@ -173,8 +148,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   linkText: {
-    color: colors.primary,
+    color: colors.textMuted,
     fontFamily: typography.bodyBold,
     fontSize: 14,
+    textAlign: "center",
   },
 });
