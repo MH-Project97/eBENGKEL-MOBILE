@@ -161,6 +161,16 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - screenshot lokal lulus untuk Login baru, Register baru, Dashboard/Menu/Kasir bertema baru, dan reset form Kasir saat pindah tab
   - self-test backend lulus untuk register karyawan tanpa role dari frontend payload
 
+### 2026-05-16 (lanjutan)
+- Penyempurnaan layar operasional dan menu informasi:
+  - halaman Pengaturan diisi dengan aksi cepat (refresh profil, detail bengkel, detail pengguna, backup) plus panduan operasional singkat
+  - halaman Tentang diisi dengan ringkasan fungsi aplikasi, daftar kemampuan utama, dan alur kerja cepat
+  - toolbar halaman Barang diperkecil lagi agar tombol tambah, urutkan, kolom, dan refresh muat dalam satu baris
+  - toolbar halaman Transaksi diperkecil agar pencarian, filter, dan refresh lebih ringkas di mobile
+  - reset halaman Kasir diperketat lagi; saat tab Kasir dibuka ulang, draft transaksi dibersihkan, dan state edit ikut dibersihkan saat meninggalkan mode edit
+- Verifikasi tambahan:
+  - screenshot lokal lulus untuk Pengaturan fungsional, Tentang fungsional, toolbar Barang/Transaksi yang lebih ringkas, dan reset Kasir saat pindah tab
+
 ## Backlog Prioritas
 
 ### P0
@@ -180,7 +190,7 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Preferensi tema, notifikasi, dan personalisasi UI
 
 ## Next Tasks
-- Lengkapi halaman Pengaturan dan Tentang
+- Tambahkan fitur lanjutan di Pengaturan dan Tentang bila dibutuhkan (preferensi, bantuan, changelog)
 - Terapkan polish visual tambahan ke halaman Detail Bengkel, Detail Pengguna, dan Transaksi agar setara dengan tema auth baru
 - Tambahkan analytics dashboard per periode bengkel aktif
 - Tambahkan laporan omzet mingguan/bulanan dan ringkasan mekanik per bengkel

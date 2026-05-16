@@ -99,6 +99,16 @@ export default function InventoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setSearchDraft("");
+      setSearchQuery("");
+      setCurrentPage(1);
+      setColumnModalVisible(false);
+      setVisibleColumns(defaultVisibleColumns);
+      setModalVisible(false);
+      setEditingItemId(null);
+      setShowDeleteConfirm(false);
+      setForm(emptyForm);
+      setError("");
       void loadItems();
     }, [loadItems]),
   );
@@ -569,8 +579,9 @@ const styles = StyleSheet.create({
   },
   sortRow: {
     flexDirection: "row",
-    gap: spacing.xs,
-    flexWrap: "wrap",
+    gap: 6,
+    flexWrap: "nowrap",
+    justifyContent: "space-between",
   },
   paginationInfoRow: {
     flexDirection: "row",
@@ -591,13 +602,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderWidth: 1,
     borderColor: colors.black,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 12,
   },
   activeIconButton: {
     backgroundColor: colors.primary,

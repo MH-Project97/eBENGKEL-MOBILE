@@ -167,9 +167,10 @@ export default function CashierScreen() {
       return () => {
         if (editIdParam) {
           resetCashierForm();
+          router.replace("/cashier" as Href);
         }
       };
-    }, [editIdParam, loadTransactionForEdit, resetCashierForm]),
+    }, [editIdParam, loadTransactionForEdit, resetCashierForm, router]),
   );
 
   useEffect(() => {

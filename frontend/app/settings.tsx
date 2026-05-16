@@ -1,3 +1,5 @@
+import { useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActionButton } from "../components/ActionButton";
@@ -7,7 +9,8 @@ import { useAuth } from "../context/AuthContext";
 import { colors, spacing, typography } from "../lib/theme";
 
 export default function SettingsScreen() {
-  const { signOut } = useAuth();
+  const { refreshProfile, signOut } = useAuth();
+  const router = useRouter();
 
   return (
     <ScreenShell title="Pengaturan" subtitle="Pengaturan aplikasi, keamanan operasional, dan preferensi penggunaan." backButton>
@@ -20,12 +23,49 @@ export default function SettingsScreen() {
         </Text>
       </SurfaceCard>
       <SurfaceCard>
-        <Text style={styles.title} testID="settings-preferences-title">
-          Preferensi Aplikasi
+        <Text style={styles.title} testID="settings-actions-title">
+          Aksi Cepat
         </Text>
-        <Text style={styles.body} testID="settings-preferences-body">
-          Halaman transaksi, kasir, inventori, dan menu lain dapat terus dikembangkan sesuai alur kerja bengkel Anda.
+        <View style={styles.actionGrid}>
+          <ActionButton
+            label="Refresh Profil"
+            compact
+            onPress={() => void refreshProfile()}
+            variant="secondary"
+            testID="settings-refresh-profile-button"
+          />
+          <ActionButton
+            label="Detail Bengkel"
+            compact
+            onPress={() => router.push("/workshop" as Href)}
+            variant="secondary"
+            testID="settings-go-workshop-button"
+          />
+          <ActionButton
+            label="Detail Pengguna"
+            compact
+            onPress={() => router.push("/users" as Href)}
+            variant="secondary"
+            testID="settings-go-users-button"
+          />
+          <ActionButton
+            label="Backup Data"
+            compact
+            onPress={() => router.push("/backup" as Href)}
+            variant="secondary"
+            testID="settings-go-backup-button"
+          />
+        </View>
+      </SurfaceCard>
+      <SurfaceCard>
+        <Text style={styles.title} testID="settings-tips-title">
+          Panduan Singkat
         </Text>
+        <View style={styles.tipList} testID="settings-tips-list">
+          <Text style={styles.body}>• Gunakan owner/admin untuk approval karyawan dan perubahan role.</Text>
+          <Text style={styles.body}>• Cek backup data secara berkala sebelum banyak perubahan stok/transaksi.</Text>
+          <Text style={styles.body}>• Buka ulang tab Kasir untuk memulai transaksi baru dari keadaan bersih.</Text>
+        </View>
       </SurfaceCard>
       <SurfaceCard>
         <View style={styles.logoutHeader}>
@@ -60,6 +100,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   logoutHeader: {
+    gap: spacing.sm,
+  },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  tipList: {
     gap: spacing.sm,
   },
 });
