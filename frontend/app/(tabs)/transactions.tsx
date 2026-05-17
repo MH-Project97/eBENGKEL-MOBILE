@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ActionButton } from "../../components/ActionButton";
 import { DeleteConfirmationCard } from "../../components/DeleteConfirmationCard";
@@ -181,44 +181,48 @@ export default function TransactionsScreen() {
       </View>
 
       <Modal animationType="slide" transparent visible={filterModalVisible} onRequestClose={() => setFilterModalVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.filterTitle}>Filter transaksi</Text>
-            <View style={styles.filterRow}>
-              <ActionButton label="Semua" compact onPress={() => applyQuickRange(null)} variant="secondary" testID="transactions-range-all" />
-              <ActionButton label="Hari ini" compact onPress={() => applyQuickRange(0)} variant="secondary" testID="transactions-range-today" />
-              <ActionButton label="7 hari" compact onPress={() => applyQuickRange(6)} variant="secondary" testID="transactions-range-7d" />
-              <ActionButton label="30 hari" compact onPress={() => applyQuickRange(29)} variant="secondary" testID="transactions-range-30d" />
-            </View>
-            <FormField label="Tanggal mulai" value={filters.startDate} onChangeText={(value) => setFilters((current) => ({ ...current, startDate: value }))} placeholder="YYYY-MM-DD" testID="transactions-start-date-input" />
-            <FormField label="Tanggal akhir" value={filters.endDate} onChangeText={(value) => setFilters((current) => ({ ...current, endDate: value }))} placeholder="YYYY-MM-DD" testID="transactions-end-date-input" />
-            <FormField label="Nama mekanik" value={filters.mechanicName} onChangeText={(value) => setFilters((current) => ({ ...current, mechanicName: value }))} testID="transactions-mechanic-filter-input" />
-            <View style={styles.filterRow}>
-              <ActionButton label="Semua status" compact onPress={() => setFilters((current) => ({ ...current, status: "all" }))} variant={filters.status === "all" ? "primary" : "secondary"} testID="transactions-status-all" />
-              <ActionButton label="Lunas" compact onPress={() => setFilters((current) => ({ ...current, status: "paid" }))} variant={filters.status === "paid" ? "primary" : "secondary"} testID="transactions-status-paid" />
-              <ActionButton label="Belum lunas" compact onPress={() => setFilters((current) => ({ ...current, status: "unpaid" }))} variant={filters.status === "unpaid" ? "primary" : "secondary"} testID="transactions-status-unpaid" />
-            </View>
-            <View style={styles.filterRow}>
-              <ActionButton
-                label="Terapkan"
-                onPress={() => {
-                  setFilterModalVisible(false);
-                  void loadTransactions();
-                }}
-                testID="transactions-apply-filter-button"
-              />
-              <ActionButton
-                label="Reset"
-                onPress={() => {
-                  setFilters(defaultFilters);
-                  setFilterModalVisible(false);
-                  void loadTransactions(defaultFilters);
-                }}
-                variant="secondary"
-              />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <ScrollView contentContainerStyle={styles.modalContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+                <Text style={styles.filterTitle}>Filter transaksi</Text>
+                <View style={styles.filterRow}>
+                  <ActionButton label="Semua" compact onPress={() => applyQuickRange(null)} variant="secondary" testID="transactions-range-all" />
+                  <ActionButton label="Hari ini" compact onPress={() => applyQuickRange(0)} variant="secondary" testID="transactions-range-today" />
+                  <ActionButton label="7 hari" compact onPress={() => applyQuickRange(6)} variant="secondary" testID="transactions-range-7d" />
+                  <ActionButton label="30 hari" compact onPress={() => applyQuickRange(29)} variant="secondary" testID="transactions-range-30d" />
+                </View>
+                <FormField label="Tanggal mulai" value={filters.startDate} onChangeText={(value) => setFilters((current) => ({ ...current, startDate: value }))} placeholder="YYYY-MM-DD" testID="transactions-start-date-input" />
+                <FormField label="Tanggal akhir" value={filters.endDate} onChangeText={(value) => setFilters((current) => ({ ...current, endDate: value }))} placeholder="YYYY-MM-DD" testID="transactions-end-date-input" />
+                <FormField label="Nama mekanik" value={filters.mechanicName} onChangeText={(value) => setFilters((current) => ({ ...current, mechanicName: value }))} testID="transactions-mechanic-filter-input" />
+                <View style={styles.filterRow}>
+                  <ActionButton label="Semua status" compact onPress={() => setFilters((current) => ({ ...current, status: "all" }))} variant={filters.status === "all" ? "primary" : "secondary"} testID="transactions-status-all" />
+                  <ActionButton label="Lunas" compact onPress={() => setFilters((current) => ({ ...current, status: "paid" }))} variant={filters.status === "paid" ? "primary" : "secondary"} testID="transactions-status-paid" />
+                  <ActionButton label="Belum lunas" compact onPress={() => setFilters((current) => ({ ...current, status: "unpaid" }))} variant={filters.status === "unpaid" ? "primary" : "secondary"} testID="transactions-status-unpaid" />
+                </View>
+                <View style={styles.filterRow}>
+                  <ActionButton
+                    label="Terapkan"
+                    onPress={() => {
+                      setFilterModalVisible(false);
+                      void loadTransactions();
+                    }}
+                    testID="transactions-apply-filter-button"
+                  />
+                  <ActionButton
+                    label="Reset"
+                    onPress={() => {
+                      setFilters(defaultFilters);
+                      setFilterModalVisible(false);
+                      void loadTransactions(defaultFilters);
+                    }}
+                    variant="secondary"
+                  />
+                </View>
+              </ScrollView>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {loading ? (
@@ -303,13 +307,25 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(10, 10, 10, 0.35)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing.lg,
+  },
+  modalKeyboard: {
+    flex: 1,
+    justifyContent: "center",
   },
   modalCard: {
+    width: "100%",
+    maxWidth: 620,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
+    borderRadius: 28,
+    maxHeight: Platform.OS === "android" ? "78%" : "82%",
+  },
+  modalContent: {
     gap: spacing.md,
   },
   filterTitle: {

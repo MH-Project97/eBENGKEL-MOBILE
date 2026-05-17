@@ -673,7 +673,7 @@ export default function CashierScreen() {
               style={styles.inlineInput}
               testID="cashier-customer-modal-input"
             />
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
               {filteredCustomers.map((name) => (
                 <Pressable
                   key={name}
@@ -710,7 +710,7 @@ export default function CashierScreen() {
               style={styles.inlineInput}
               testID="cashier-mechanic-modal-input"
             />
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
               {filteredMechanics.map((name) => (
                 <Pressable
                   key={name}
@@ -757,7 +757,7 @@ export default function CashierScreen() {
               </Pressable>
             </View>
 
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
               {inventoryItems.length === 0 ? (
                 <Text style={styles.helperText}>Belum ada barang yang cocok. Coba kata kunci lain atau cek stok barang.</Text>
               ) : (
@@ -1107,21 +1107,25 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.35)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
     padding: spacing.lg,
   },
   modalKeyboard: {
     flex: 1,
+    justifyContent: "center",
   },
   modalCard: {
+    width: "100%",
+    maxWidth: 640,
     borderRadius: 28,
-    maxHeight: "85%",
+    maxHeight: Platform.OS === "android" ? "72%" : "78%",
   },
   modalList: {
     gap: spacing.sm,
   },
   modalScroll: {
-    maxHeight: 360,
+    maxHeight: Platform.OS === "android" ? 180 : 260,
   },
   modalOption: {
     borderWidth: 1,

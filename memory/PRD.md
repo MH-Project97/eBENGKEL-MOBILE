@@ -171,6 +171,16 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Verifikasi tambahan:
   - screenshot lokal lulus untuk Pengaturan fungsional, Tentang fungsional, toolbar Barang/Transaksi yang lebih ringkas, dan reset Kasir saat pindah tab
 
+### 2026-05-17
+- Penyempurnaan seluruh popup agar lebih konsisten:
+  - popup Kasir (pelanggan, mekanik, barang, jasa, keputusan kembalian) dipusatkan ke tengah layar
+  - popup Inventory form dan popup filter Transaksi juga dipindahkan ke tengah layar
+  - popup dengan input/list kini dibungkus `KeyboardAvoidingView` + area scroll agar lebih aman saat keyboard virtual Android muncul
+  - daftar saran pelanggan, mekanik, dan barang dibuat tetap scrollable dengan `keyboardShouldPersistTaps` agar tidak mudah tertutup keyboard
+  - tinggi popup daftar dipendekkan lagi supaya area tombol bawah tetap lebih mudah terlihat
+- Verifikasi tambahan:
+  - pengecekan singkat via screenshot lokal untuk popup utama setelah dipusatkan (tanpa pengujian mendalam sesuai arahan user)
+
 ## Backlog Prioritas
 
 ### P0

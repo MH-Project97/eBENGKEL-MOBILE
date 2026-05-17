@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { ActionButton } from "../../components/ActionButton";
 import { DeleteConfirmationCard } from "../../components/DeleteConfirmationCard";
@@ -450,52 +450,54 @@ export default function InventoryScreen() {
       </SurfaceCard>
 
       <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={closeModal}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalContent}>
-              <Text style={styles.modalTitle}>{editingItemId ? "Edit Barang" : "Tambah Barang Baru"}</Text>
-              <FormField label="Kode barang" value={form.item_code} onChangeText={(value) => updateField("item_code", value)} autoCapitalize="characters" testID="inventory-item-code-input" />
-              <FormField label="Nama barang" value={form.name} onChangeText={(value) => updateField("name", value)} testID="inventory-name-input" />
-              <FormField label="Jumlah stok" value={form.stock} onChangeText={(value) => updateField("stock", value)} keyboardType="numeric" testID="inventory-stock-input" />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+                <Text style={styles.modalTitle}>{editingItemId ? "Edit Barang" : "Tambah Barang Baru"}</Text>
+                <FormField label="Kode barang" value={form.item_code} onChangeText={(value) => updateField("item_code", value)} autoCapitalize="characters" testID="inventory-item-code-input" />
+                <FormField label="Nama barang" value={form.name} onChangeText={(value) => updateField("name", value)} testID="inventory-name-input" />
+                <FormField label="Jumlah stok" value={form.stock} onChangeText={(value) => updateField("stock", value)} keyboardType="numeric" testID="inventory-stock-input" />
 
-              <Text style={styles.sectionLabel}>Satuan stok</Text>
-              <View style={styles.unitRow}>
-                {units.map((unit) => (
-                  <ActionButton key={unit} label={unit.toUpperCase()} compact onPress={() => updateField("unit", unit)} variant={form.unit === unit ? "primary" : "secondary"} />
-                ))}
-              </View>
+                <Text style={styles.sectionLabel}>Satuan stok</Text>
+                <View style={styles.unitRow}>
+                  {units.map((unit) => (
+                    <ActionButton key={unit} label={unit.toUpperCase()} compact onPress={() => updateField("unit", unit)} variant={form.unit === unit ? "primary" : "secondary"} />
+                  ))}
+                </View>
 
-              <FormField label="Harga modal" value={form.cost_price} onChangeText={(value) => updateField("cost_price", value)} keyboardType="numeric" testID="inventory-cost-price-input" />
-              <FormField label="Harga jual ke bengkel" value={form.workshop_price} onChangeText={(value) => updateField("workshop_price", value)} keyboardType="numeric" testID="inventory-workshop-price-input" />
-              <FormField label="Harga jual ke konsumen" value={form.consumer_price} onChangeText={(value) => updateField("consumer_price", value)} keyboardType="numeric" testID="inventory-consumer-price-input" />
-              <FormField label="Keterangan" value={form.notes} onChangeText={(value) => updateField("notes", value)} multiline testID="inventory-notes-input" />
-              <FormField label="Batas stok minimum" value={form.low_stock_threshold} onChangeText={(value) => updateField("low_stock_threshold", value)} keyboardType="numeric" testID="inventory-low-stock-threshold-input" />
+                <FormField label="Harga modal" value={form.cost_price} onChangeText={(value) => updateField("cost_price", value)} keyboardType="numeric" testID="inventory-cost-price-input" />
+                <FormField label="Harga jual ke bengkel" value={form.workshop_price} onChangeText={(value) => updateField("workshop_price", value)} keyboardType="numeric" testID="inventory-workshop-price-input" />
+                <FormField label="Harga jual ke konsumen" value={form.consumer_price} onChangeText={(value) => updateField("consumer_price", value)} keyboardType="numeric" testID="inventory-consumer-price-input" />
+                <FormField label="Keterangan" value={form.notes} onChangeText={(value) => updateField("notes", value)} multiline testID="inventory-notes-input" />
+                <FormField label="Batas stok minimum" value={form.low_stock_threshold} onChangeText={(value) => updateField("low_stock_threshold", value)} keyboardType="numeric" testID="inventory-low-stock-threshold-input" />
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              <View style={styles.modalActions}>
-                <ActionButton label={editingItemId ? "Simpan Perubahan" : "Simpan Barang"} onPress={() => void saveItem()} testID="inventory-save-button" />
-                <ActionButton label="Tutup" onPress={closeModal} variant="secondary" testID="inventory-close-button" />
-              </View>
+                <View style={styles.modalActions}>
+                  <ActionButton label={editingItemId ? "Simpan Perubahan" : "Simpan Barang"} onPress={() => void saveItem()} testID="inventory-save-button" />
+                  <ActionButton label="Tutup" onPress={closeModal} variant="secondary" testID="inventory-close-button" />
+                </View>
 
-              {editingItemId && isAdmin ? (
-                <>
-                  <ActionButton label="Hapus Barang" onPress={() => setShowDeleteConfirm((current) => !current)} variant="danger" testID="inventory-open-delete-button" />
-                  {showDeleteConfirm ? (
-                    <DeleteConfirmationCard
-                      title="Hapus barang"
-                      description="Tombol hapus hanya tersedia untuk admin dan berada di dalam menu edit. Ketik HAPUS untuk konfirmasi."
-                      onCancel={() => setShowDeleteConfirm(false)}
-                      onConfirm={deleteSelectedItem}
-                      loading={deleting}
-                      testIDPrefix="inventory-delete"
-                    />
-                  ) : null}
-                </>
-              ) : null}
-            </ScrollView>
+                {editingItemId && isAdmin ? (
+                  <>
+                    <ActionButton label="Hapus Barang" onPress={() => setShowDeleteConfirm((current) => !current)} variant="danger" testID="inventory-open-delete-button" />
+                    {showDeleteConfirm ? (
+                      <DeleteConfirmationCard
+                        title="Hapus barang"
+                        description="Tombol hapus hanya tersedia untuk admin dan berada di dalam menu edit. Ketik HAPUS untuk konfirmasi."
+                        onCancel={() => setShowDeleteConfirm(false)}
+                        onConfirm={deleteSelectedItem}
+                        loading={deleting}
+                        testIDPrefix="inventory-delete"
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -740,14 +742,23 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(10, 10, 10, 0.35)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing.lg,
   },
   modalCard: {
-    maxHeight: "92%",
+    width: "100%",
+    maxWidth: 640,
+    maxHeight: Platform.OS === "android" ? "78%" : "84%",
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
+    borderRadius: 28,
+  },
+  modalKeyboard: {
+    flex: 1,
+    justifyContent: "center",
   },
   modalBackdropCentered: {
     flex: 1,
