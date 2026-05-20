@@ -1,10 +1,10 @@
 import { PropsWithChildren } from "react";
-import { StyleSheet, View, ViewStyle } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
 import { colors, spacing } from "../lib/theme";
 
 type SurfaceCardProps = PropsWithChildren<{
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }>;
 
 export function SurfaceCard({ children, style }: SurfaceCardProps) {

@@ -269,5 +269,12 @@ export const api = {
       token,
     }),
 
+  updateUserPassword: (token: string, membershipId: string, password?: string) =>
+    request<{ message: string; username: string; temporary_password?: string | null }>(`/users/${membershipId}/password`, {
+      method: "PATCH",
+      token,
+      body: password ? { password } : {},
+    }),
+
   exportBackup: (token: string) => request<Record<string, unknown>>("/backups/export", { token }),
 };

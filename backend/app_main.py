@@ -231,8 +231,24 @@ class WorkshopMemberRoleRequest(BaseModel):
     role: StaffRole
 
 
+class UserPasswordUpdateRequest(BaseModel):
+    password: Optional[str] = Field(default=None, min_length=6)
+
+
+class UserPasswordUpdateResponse(BaseModel):
+    message: str
+    username: str
+    temporary_password: Optional[str] = None
+
+
 class WorkshopNameCreateRequest(BaseModel):
     name: str
+
+
+class MechanicAccountResponse(BaseModel):
+    message: str
+    created_account: bool = False
+    username: Optional[str] = None
 
 
 class InventoryItemBase(BaseModel):
@@ -486,6 +502,80 @@ async def generate_unique_workshop_code() -> str:
         if not exists:
             return code
     raise HTTPException(status_code=500, detail="Gagal membuat ID bengkel unik")
+
+
+def normalize_person_name(name: str) -> str:
+    return " ".join(name.strip().lower().split())
+
+
+def build_username_seed(full_name: str) -> str:
+    cleaned = "".join(character for character in full_name.lower() if character.isalnum())
+    return cleaned[:10] or "mekanik"
+
+
+def generate_temporary_password(length: int = 8) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(random.choices(alphabet, k=length))
+
+
+async def generate_unique_staff_username(full_name: str) -> str:
+    base = build_username_seed(full_name)
+    for _ in range(40):
+        candidate = normalize_username(f"{base}{''.join(random.choices(string.digits, k=4))}")
+        existing = await db.users.find_one({"username": candidate}, {"_id": 0, "id": 1})
+        if not existing:
+            return candidate
+    raise HTTPException(status_code=500, detail="Gagal membuat username mekanik unik")
+
+
+async def ensure_mechanic_account(workshop_id: str, mechanic_name: str) -> dict:
+    normalized_name = normalize_person_name(mechanic_name)
+    if not normalized_name:
+        return {"created_account": False, "username": None, "full_name": ""}
+
+    active_members = await list_workshop_members(workshop_id, "active")
+    for member in active_members:
+        if member.role == "mekanik" and normalize_person_name(member.full_name) == normalized_name:
+            return {"created_account": False, "username": member.username, "full_name": member.full_name}
+
+    full_name = " ".join(part.capitalize() for part in normalized_name.split())
+    username = await generate_unique_staff_username(full_name)
+    timestamp = now_iso()
+    user_id = str(uuid.uuid4())
+    temporary_password = generate_temporary_password()
+    user_document = {
+        "id": user_id,
+        "username": username,
+        "full_name": full_name,
+        "password_hash": hash_password(temporary_password),
+        "created_at": timestamp,
+        "last_workshop_id": workshop_id,
+    }
+    membership_document = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "workshop_id": workshop_id,
+        "role": "mekanik",
+        "status": "active",
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    await db.users.insert_one({**user_document})
+    await db.workshop_memberships.insert_one({**membership_document})
+
+    workshop = await db.workshops.find_one({"id": workshop_id}, {"_id": 0})
+    if workshop:
+        manual_mechanics = [
+            name
+            for name in workshop.get("manual_mechanics", [])
+            if normalize_person_name(name) != normalized_name
+        ]
+        await db.workshops.update_one(
+            {"id": workshop_id},
+            {"$set": {"manual_mechanics": manual_mechanics, "updated_at": timestamp}},
+        )
+
+    return {"created_account": True, "username": username, "full_name": full_name}
 
 
 async def get_workshop_accesses(user_id: str, statuses: Optional[list[MembershipStatus]] = None) -> list[WorkshopAccess]:
@@ -1197,31 +1287,28 @@ async def add_workshop_customer(
     return ApiMessage(message="Pelanggan berhasil disimpan")
 
 
-@api_router.post("/workshop/mechanics", response_model=ApiMessage)
+@api_router.post("/workshop/mechanics", response_model=MechanicAccountResponse)
 async def add_workshop_mechanic(
     payload: WorkshopNameCreateRequest,
     current_user: dict = Depends(get_current_user),
-) -> ApiMessage:
+) -> MechanicAccountResponse:
     mechanic_name = payload.name.strip()
     if not mechanic_name:
         raise HTTPException(status_code=400, detail="Nama mekanik wajib diisi")
 
-    workshop = await db.workshops.find_one({"id": current_user["workshop_id"]}, {"_id": 0})
-    if not workshop:
-        raise HTTPException(status_code=404, detail="Bengkel tidak ditemukan")
+    mechanic_result = await ensure_mechanic_account(current_user["workshop_id"], mechanic_name)
+    if not mechanic_result["created_account"]:
+        return MechanicAccountResponse(
+            message="Mekanik sudah tersedia",
+            created_account=False,
+            username=mechanic_result["username"],
+        )
 
-    members = await list_workshop_members(current_user["workshop_id"], "active")
-    mechanic_options = build_mechanic_options(workshop, members)
-    if mechanic_name in mechanic_options:
-        return ApiMessage(message="Mekanik sudah tersedia")
-
-    manual_mechanics = workshop.get("manual_mechanics", [])
-    manual_mechanics.append(mechanic_name)
-    await db.workshops.update_one(
-        {"id": current_user["workshop_id"]},
-        {"$set": {"manual_mechanics": manual_mechanics, "updated_at": now_iso()}},
+    return MechanicAccountResponse(
+        message="Mekanik berhasil dibuat sebagai akun karyawan bengkel",
+        created_account=True,
+        username=mechanic_result["username"],
     )
-    return ApiMessage(message="Mekanik berhasil disimpan")
 
 
 @api_router.get("/users", response_model=list[WorkshopMember])
@@ -1271,6 +1358,42 @@ async def delete_user_access(
             raise HTTPException(status_code=400, detail="Bengkel harus memiliki minimal satu owner aktif")
     await db.workshop_memberships.delete_one({"id": membership_id})
     return ApiMessage(message="Akses anggota berhasil dihapus")
+
+
+@api_router.patch("/users/{membership_id}/password", response_model=UserPasswordUpdateResponse)
+async def update_user_password(
+    membership_id: str,
+    payload: UserPasswordUpdateRequest,
+    manager_user: dict = Depends(get_manager_user),
+) -> UserPasswordUpdateResponse:
+    membership = await db.workshop_memberships.find_one(
+        {"id": membership_id, "workshop_id": manager_user["workshop_id"], "status": "active"},
+        {"_id": 0},
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Anggota aktif tidak ditemukan")
+    if membership["user_id"] == manager_user["id"]:
+        raise HTTPException(status_code=400, detail="Ubah password diri sendiri dari akun yang dipakai")
+    if membership["role"] == "owner":
+        raise HTTPException(status_code=400, detail="Password owner tidak bisa diubah dari menu ini")
+    if membership["role"] == "admin" and manager_user["role"] != "owner":
+        raise HTTPException(status_code=403, detail="Hanya owner yang dapat mengubah password admin")
+
+    user = await db.users.find_one({"id": membership["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Akun pengguna tidak ditemukan")
+
+    next_password = payload.password.strip() if payload.password else generate_temporary_password()
+    await db.users.update_one(
+        {"id": membership["user_id"]},
+        {"$set": {"password_hash": hash_password(next_password)}},
+    )
+
+    return UserPasswordUpdateResponse(
+        message="Password karyawan berhasil diperbarui",
+        username=user["username"],
+        temporary_password=None if payload.password else next_password,
+    )
 
 
 @api_router.get("/items", response_model=list[InventoryItem])
@@ -1443,6 +1566,8 @@ async def create_transaction(
         raise HTTPException(status_code=403, detail="Role mekanik tidak bisa membuat transaksi")
 
     workshop_id = current_user["workshop_id"]
+    if payload.customer_mode == "konsumen" and payload.mechanic_name.strip():
+        await ensure_mechanic_account(workshop_id, payload.mechanic_name)
     transaction_lines, inventory_updates, subtotal = await build_transaction_lines_and_stock(workshop_id, payload.lines, payload.customer_mode)
     total = round(max(subtotal - payload.discount, 0), 2)
     timestamp = now_iso()
@@ -1486,6 +1611,8 @@ async def update_transaction(
         raise HTTPException(status_code=403, detail="Role mekanik tidak bisa mengubah transaksi")
 
     workshop_id = current_user["workshop_id"]
+    if payload.customer_mode == "konsumen" and payload.mechanic_name.strip():
+        await ensure_mechanic_account(workshop_id, payload.mechanic_name)
     existing_transaction = await db.transactions.find_one(
         {"id": transaction_id, "workshop_id": workshop_id},
         {"_id": 0},

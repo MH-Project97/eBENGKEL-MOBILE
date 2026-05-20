@@ -181,6 +181,18 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
 - Verifikasi tambahan:
   - pengecekan singkat via screenshot lokal untuk popup utama setelah dipusatkan (tanpa pengujian mendalam sesuai arahan user)
 
+### 2026-05-20
+- Penyempurnaan auth, popup, dan manajemen karyawan:
+  - halaman Login dan Register dipadatkan lagi agar lebih pas di layar ponsel
+  - teks `Pilih jenis akun` di Register dihapus; tombol `Pemilik Bengkel / Karyawan` sekarang langsung tampil
+  - helper teks role karyawan di Register dihapus agar form lebih ringkas
+  - tinggi popup Kasir dibuat lebih adaptif per jenis popup (selector, daftar barang, popup ringkas) supaya lebih pas di layar kecil
+  - saat nama mekanik baru dipakai dari Kasir/transaksi, sistem otomatis membuat akun karyawan mekanik aktif di bengkel tersebut dengan username sistem
+  - halaman Detail Pengguna kini punya kontrol owner/admin untuk `Simpan Password` atau `Reset Otomatis` password karyawan
+- Verifikasi tambahan:
+  - self-test backend lulus untuk: register owner baru, auto-create akun mekanik, reset password mekanik, dan login akun mekanik hasil reset
+  - screenshot lokal lulus untuk Login compact, Register compact tanpa teks tambahan, dan kontrol password karyawan di halaman Detail Pengguna
+
 ## Backlog Prioritas
 
 ### P0

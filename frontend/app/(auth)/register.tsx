@@ -88,36 +88,33 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
-          <View style={styles.accountTypeCard}>
-            <Text style={styles.accountTypeLabel} testID="register-account-type-label">Pilih jenis akun</Text>
-            <View style={styles.segmentRow}>
-              <Pressable
-                onPress={() => updateField("account_type", "owner")}
-                style={({ pressed }) => [
-                  styles.segmentButton,
-                  form.account_type === "owner" && styles.segmentButtonActive,
-                  pressed && styles.segmentPressed,
-                ]}
-                testID="register-type-owner"
-              >
-                <Text style={[styles.segmentText, form.account_type === "owner" && styles.segmentTextActive]}>
-                  Pemilik Bengkel
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => updateField("account_type", "employee")}
-                style={({ pressed }) => [
-                  styles.segmentButton,
-                  form.account_type === "employee" && styles.segmentButtonActive,
-                  pressed && styles.segmentPressed,
-                ]}
-                testID="register-type-employee"
-              >
-                <Text style={[styles.segmentText, form.account_type === "employee" && styles.segmentTextActive]}>
-                  Karyawan
-                </Text>
-              </Pressable>
-            </View>
+          <View style={styles.segmentRow}>
+            <Pressable
+              onPress={() => updateField("account_type", "owner")}
+              style={({ pressed }) => [
+                styles.segmentButton,
+                form.account_type === "owner" && styles.segmentButtonActive,
+                pressed && styles.segmentPressed,
+              ]}
+              testID="register-type-owner"
+            >
+              <Text style={[styles.segmentText, form.account_type === "owner" && styles.segmentTextActive]}>
+                Pemilik Bengkel
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => updateField("account_type", "employee")}
+              style={({ pressed }) => [
+                styles.segmentButton,
+                form.account_type === "employee" && styles.segmentButtonActive,
+                pressed && styles.segmentPressed,
+              ]}
+              testID="register-type-employee"
+            >
+              <Text style={[styles.segmentText, form.account_type === "employee" && styles.segmentTextActive]}>
+                Karyawan
+              </Text>
+            </Pressable>
           </View>
           <FormField
             label="Username"
@@ -156,19 +153,14 @@ export default function RegisterScreen() {
               testID="register-workshop-name-input"
             />
           ) : (
-            <>
-              <FormField
-                label="ID Bengkel"
-                value={form.workshop_code}
-                onChangeText={(value) => updateField("workshop_code", value.toUpperCase())}
-                autoCapitalize="characters"
-                placeholder="Masukkan ID bengkel"
-                testID="register-workshop-code-input"
-              />
-              <Text style={styles.helperText} testID="register-employee-helper-text">
-                Role karyawan akan diatur pemilik bengkel setelah pendaftaran.
-              </Text>
-            </>
+            <FormField
+              label="ID Bengkel"
+              value={form.workshop_code}
+              onChangeText={(value) => updateField("workshop_code", value.toUpperCase())}
+              autoCapitalize="characters"
+              placeholder="Masukkan ID bengkel"
+              testID="register-workshop-code-input"
+            />
           )}
           {error ? <Text style={styles.error} testID="register-error-text">{error}</Text> : null}
           {info ? <Text style={styles.info} testID="register-info-message">{info}</Text> : null}
@@ -198,23 +190,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
     justifyContent: "center",
     minHeight: "100%",
   },
   card: {
-    gap: spacing.lg,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xxl,
+    gap: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   brandBlock: {
     alignItems: "center",
-    gap: spacing.md,
+    gap: spacing.xs,
   },
   logoBadge: {
-    width: 116,
-    height: 116,
-    borderRadius: 30,
+    width: 88,
+    height: 88,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -224,28 +217,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
   },
-  accountTypeCard: {
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  accountTypeLabel: {
-    color: colors.text,
-    fontFamily: typography.bodyBold,
-    fontSize: 14,
-  },
   segmentRow: {
     flexDirection: "row",
     flexWrap: "nowrap",
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   segmentButton: {
     flex: 1,
-    minHeight: 46,
-    borderRadius: 18,
+    minHeight: 42,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -272,21 +252,15 @@ const styles = StyleSheet.create({
   title: {
     color: colors.primary,
     fontFamily: typography.heading,
-    fontSize: 32,
+    fontSize: 28,
     textAlign: "center",
   },
   subtitle: {
     color: colors.textMuted,
     fontFamily: typography.bodyMedium,
-    fontSize: 16,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  helperText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 20,
+    textAlign: "center",
   },
   error: {
     color: colors.danger,

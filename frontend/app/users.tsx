@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ActionButton } from "../components/ActionButton";
 import { ScreenShell } from "../components/ScreenShell";
@@ -18,6 +18,8 @@ export default function UsersScreen() {
   const [users, setUsers] = useState<WorkshopMember[]>([]);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({});
+  const [generatedPasswords, setGeneratedPasswords] = useState<Record<string, string>>({});
 
   const isManager = isManagerRole(session?.user.role);
 
@@ -70,6 +72,51 @@ export default function UsersScreen() {
     }
   };
 
+  const updatePasswordDraft = (membershipId: string, value: string) => {
+    setPasswordDrafts((current) => ({ ...current, [membershipId]: value }));
+  };
+
+  const saveUserPassword = async (membershipId: string) => {
+    if (!session?.token) {
+      return;
+    }
+
+    const nextPassword = passwordDrafts[membershipId]?.trim();
+    if (!nextPassword || nextPassword.length < 6) {
+      setError("Password baru minimal 6 karakter.");
+      return;
+    }
+
+    try {
+      setError("");
+      const response = await api.updateUserPassword(session.token, membershipId, nextPassword);
+      setGeneratedPasswords((current) => ({ ...current, [membershipId]: "" }));
+      setPasswordDrafts((current) => ({ ...current, [membershipId]: "" }));
+      setInfo(`Password untuk @${response.username} berhasil diperbarui.`);
+    } catch (passwordError) {
+      setError(passwordError instanceof Error ? passwordError.message : "Gagal mengubah password karyawan");
+    }
+  };
+
+  const resetUserPassword = async (membershipId: string) => {
+    if (!session?.token) {
+      return;
+    }
+
+    try {
+      setError("");
+      const response = await api.updateUserPassword(session.token, membershipId);
+      setGeneratedPasswords((current) => ({ ...current, [membershipId]: response.temporary_password ?? "" }));
+      setInfo(
+        response.temporary_password
+          ? `Password sementara @${response.username}: ${response.temporary_password}`
+          : `Password @${response.username} berhasil direset.`,
+      );
+    } catch (passwordError) {
+      setError(passwordError instanceof Error ? passwordError.message : "Gagal reset password karyawan");
+    }
+  };
+
   return (
     <ScreenShell title="Detail Pengguna" subtitle="Daftar anggota aktif untuk bengkel yang sedang dipakai. Persetujuan user baru ada di halaman bengkel." backButton>
       <SurfaceCard>
@@ -102,6 +149,38 @@ export default function UsersScreen() {
                   />
                 ))}
               </View>
+              <Text style={styles.inlineLabel} testID={`users-password-label-${user.membership_id}`}>
+                Password karyawan
+              </Text>
+              <TextInput
+                value={passwordDrafts[user.membership_id] ?? ""}
+                onChangeText={(value) => updatePasswordDraft(user.membership_id, value)}
+                placeholder="Password baru minimal 6 karakter"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                style={styles.passwordInput}
+                testID={`users-password-input-${user.membership_id}`}
+              />
+              <View style={styles.roleRow}>
+                <ActionButton
+                  label="Simpan Password"
+                  compact
+                  onPress={() => void saveUserPassword(user.membership_id)}
+                  testID={`users-save-password-${user.membership_id}`}
+                />
+                <ActionButton
+                  label="Reset Otomatis"
+                  compact
+                  onPress={() => void resetUserPassword(user.membership_id)}
+                  variant="secondary"
+                  testID={`users-reset-password-${user.membership_id}`}
+                />
+              </View>
+              {generatedPasswords[user.membership_id] ? (
+                <Text style={styles.tempPasswordText} testID={`users-temp-password-${user.membership_id}`}>
+                  Password sementara: {generatedPasswords[user.membership_id]}
+                </Text>
+              ) : null}
               <ActionButton label="Hapus akses" onPress={() => void removeAccess(user.membership_id)} variant="secondary" testID={`users-remove-${user.membership_id}`} />
             </>
           ) : null}
@@ -156,5 +235,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.bodyBold,
     fontSize: 12,
+  },
+  inlineLabel: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyBold,
+    fontSize: 12,
+    textTransform: "uppercase",
+  },
+  passwordInput: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    color: colors.text,
+    fontFamily: typography.bodyMedium,
+    fontSize: 14,
+    backgroundColor: colors.surface,
+  },
+  tempPasswordText: {
+    color: colors.primary,
+    fontFamily: typography.bodyBold,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

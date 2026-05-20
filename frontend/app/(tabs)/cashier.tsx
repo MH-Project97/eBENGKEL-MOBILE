@@ -447,6 +447,8 @@ export default function CashierScreen() {
 
       if (customerName.trim() && !workshopCustomers.includes(customerName.trim())) {
         await api.addWorkshopCustomer(session.token, customerName.trim());
+      }
+      if (customerName.trim() || mechanicName.trim()) {
         await loadWorkshopData();
       }
 
@@ -663,7 +665,7 @@ export default function CashierScreen() {
       <Modal visible={customerModalVisible} animationType="slide" transparent onRequestClose={() => setCustomerModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
-          <SurfaceCard style={styles.modalCard}>
+          <SurfaceCard style={[styles.modalCard, styles.selectorModalCard]}>
             <Text style={styles.sectionTitle}>Pilih pelanggan</Text>
             <TextInput
               value={customerSearch}
@@ -700,7 +702,7 @@ export default function CashierScreen() {
       <Modal visible={mechanicModalVisible} animationType="slide" transparent onRequestClose={() => setMechanicModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
-          <SurfaceCard style={styles.modalCard}>
+          <SurfaceCard style={[styles.modalCard, styles.selectorModalCard]}>
             <Text style={styles.sectionTitle}>Pilih mekanik</Text>
             <TextInput
               value={mechanicSearch}
@@ -737,7 +739,7 @@ export default function CashierScreen() {
       <Modal visible={itemModalVisible} animationType="slide" transparent onRequestClose={() => setItemModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
-          <SurfaceCard style={styles.modalCard}>
+          <SurfaceCard style={[styles.modalCard, styles.itemModalCard]}>
             <Text style={styles.sectionTitle}>Pilih barang</Text>
             <View style={styles.inputActionRow}>
               <TextInput
@@ -757,7 +759,7 @@ export default function CashierScreen() {
               </Pressable>
             </View>
 
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalList} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+            <ScrollView style={[styles.modalScroll, styles.itemModalScroll]} contentContainerStyle={styles.modalList} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
               {inventoryItems.length === 0 ? (
                 <Text style={styles.helperText}>Belum ada barang yang cocok. Coba kata kunci lain atau cek stok barang.</Text>
               ) : (
@@ -796,7 +798,7 @@ export default function CashierScreen() {
       <Modal visible={serviceModalVisible} animationType="slide" transparent onRequestClose={() => setServiceModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={12} style={styles.modalKeyboard}>
         <View style={styles.modalBackdrop}>
-          <SurfaceCard style={styles.modalCard}>
+          <SurfaceCard style={[styles.modalCard, styles.compactModalCard]}>
             <Text style={styles.sectionTitle}>Input jasa manual</Text>
             <FormField label="Nama jasa" value={serviceName} onChangeText={setServiceName} testID="cashier-service-name-input" />
             <FormField label="Harga jasa" value={servicePrice} onChangeText={setServicePrice} keyboardType="numeric" testID="cashier-service-price-input" />
@@ -811,7 +813,7 @@ export default function CashierScreen() {
 
       <Modal visible={changeDecisionVisible} animationType="fade" transparent onRequestClose={() => setChangeDecisionVisible(false)}>
         <View style={styles.modalBackdrop}>
-          <SurfaceCard style={styles.modalCard}>
+          <SurfaceCard style={[styles.modalCard, styles.compactModalCard]}>
             <Text style={styles.sectionTitle}>Keputusan kembalian</Text>
             <Text style={styles.helperText}>Ada kembalian sebesar {formatCurrency(changeDue)}. Pilih apakah kembalian disimpan di transaksi atau sudah dikembalikan langsung oleh kasir.</Text>
             <View style={styles.segmentRow}>
@@ -1121,11 +1123,23 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     maxHeight: Platform.OS === "android" ? "72%" : "78%",
   },
+  selectorModalCard: {
+    maxHeight: Platform.OS === "android" ? "66%" : "72%",
+  },
+  itemModalCard: {
+    maxHeight: Platform.OS === "android" ? "74%" : "80%",
+  },
+  compactModalCard: {
+    maxHeight: Platform.OS === "android" ? "52%" : "58%",
+  },
   modalList: {
     gap: spacing.sm,
   },
   modalScroll: {
     maxHeight: Platform.OS === "android" ? 180 : 260,
+  },
+  itemModalScroll: {
+    maxHeight: Platform.OS === "android" ? 220 : 320,
   },
   modalOption: {
     borderWidth: 1,
