@@ -143,7 +143,7 @@ export default function TransactionsScreen() {
   };
 
   return (
-    <ScreenShell title="" subtitle="" hideHeader>
+    <ScreenShell title="" subtitle="" hideHeader contentMaxWidth={980}>
       <View style={styles.toolbarRow}>
         <TextInput
           value={searchDraft}

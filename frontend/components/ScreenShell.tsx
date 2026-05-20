@@ -6,6 +6,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from "react-native";
@@ -24,6 +25,7 @@ type ScreenShellProps = PropsWithChildren<{
   hideHeader?: boolean;
   scrollable?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  contentMaxWidth?: number;
 }>;
 
 export function ScreenShell({
@@ -34,18 +36,45 @@ export function ScreenShell({
   hideHeader,
   scrollable = true,
   contentStyle,
+  contentMaxWidth = 1120,
   children,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWideCanvas = width >= 960;
   const topPadding = insets.top + (hideHeader ? spacing.xs : spacing.sm);
   const bottomPadding = insets.bottom + spacing.lg;
-  const mergedContentStyle = [
-    styles.content,
+  const outerContentStyle = [
+    styles.outerContent,
     { paddingTop: topPadding, paddingBottom: bottomPadding },
+  ];
+  const innerContentStyle = [
+    styles.innerContent,
     !scrollable && styles.contentFill,
+    isWideCanvas && { maxWidth: contentMaxWidth },
     contentStyle,
   ];
+
+  const header = hideHeader ? null : (
+    <View style={styles.headerRow}>
+      <View style={styles.headerTextWrapper}>
+        {backButton ? (
+          <ActionButton
+            label="Kembali"
+            compact
+            onPress={() => router.back()}
+            variant="secondary"
+          >
+            <Ionicons name="arrow-back" size={16} color={colors.text} />
+          </ActionButton>
+        ) : null}
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      </View>
+      {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -55,53 +84,21 @@ export function ScreenShell({
       >
         {scrollable ? (
           <ScrollView
-            contentContainerStyle={mergedContentStyle}
+            contentContainerStyle={outerContentStyle}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {hideHeader ? null : (
-              <View style={styles.headerRow}>
-                <View style={styles.headerTextWrapper}>
-                  {backButton ? (
-                    <ActionButton
-                      label="Kembali"
-                      compact
-                      onPress={() => router.back()}
-                      variant="secondary"
-                    >
-                      <Ionicons name="arrow-back" size={16} color={colors.text} />
-                    </ActionButton>
-                  ) : null}
-                  <Text style={styles.title}>{title}</Text>
-                  <Text style={styles.subtitle}>{subtitle}</Text>
-                </View>
-                {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
-              </View>
-            )}
-            {children}
+            <View style={innerContentStyle}>
+              {header}
+              {children}
+            </View>
           </ScrollView>
         ) : (
-          <View style={mergedContentStyle}>
-            {hideHeader ? null : (
-              <View style={styles.headerRow}>
-                <View style={styles.headerTextWrapper}>
-                  {backButton ? (
-                    <ActionButton
-                      label="Kembali"
-                      compact
-                      onPress={() => router.back()}
-                      variant="secondary"
-                    >
-                      <Ionicons name="arrow-back" size={16} color={colors.text} />
-                    </ActionButton>
-                  ) : null}
-                  <Text style={styles.title}>{title}</Text>
-                  <Text style={styles.subtitle}>{subtitle}</Text>
-                </View>
-                {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
-              </View>
-            )}
-            {children}
+          <View style={outerContentStyle}>
+            <View style={innerContentStyle}>
+              {header}
+              {children}
+            </View>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -117,8 +114,12 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  content: {
+  outerContent: {
     paddingHorizontal: spacing.lg,
+  },
+  innerContent: {
+    width: "100%",
+    alignSelf: "center",
     gap: spacing.lg,
   },
   contentFill: {

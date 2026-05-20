@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
@@ -13,6 +13,8 @@ import type { DashboardSummary } from "../../lib/types";
 
 export default function DashboardScreen() {
   const { session } = useAuth();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1080;
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,6 +42,7 @@ export default function DashboardScreen() {
     <ScreenShell
       title={session?.user.workshop_name ?? "Bengkel Anda"}
       subtitle={`${session?.user.full_name ?? "Pengguna"} • ${roleLabels[session?.user.role ?? "kasir"]}`}
+      contentMaxWidth={1180}
     >
       {loading ? (
         <SurfaceCard>
@@ -65,39 +68,41 @@ export default function DashboardScreen() {
         </SurfaceCard>
       </View>
 
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Status stok berkurang</Text>
-        {(summary?.low_stock_items ?? []).length === 0 ? (
-          <Text style={styles.emptyText}>Belum ada barang yang berada di bawah batas minimum.</Text>
-        ) : (
-          summary?.low_stock_items.map((item) => (
-            <View key={item.id} style={styles.rowBetween}>
-              <View style={styles.flexOne}>
-                <Text style={styles.rowTitle}>{item.name}</Text>
-                <Text style={styles.rowMeta}>{item.category}</Text>
+      <View style={[styles.detailGrid, isDesktop && styles.detailGridDesktop]}>
+        <SurfaceCard style={[styles.detailCard, isDesktop && styles.detailCardDesktop]}>
+          <Text style={styles.sectionTitle}>Status stok berkurang</Text>
+          {(summary?.low_stock_items ?? []).length === 0 ? (
+            <Text style={styles.emptyText}>Belum ada barang yang berada di bawah batas minimum.</Text>
+          ) : (
+            summary?.low_stock_items.map((item) => (
+              <View key={item.id} style={styles.rowBetween}>
+                <View style={styles.flexOne}>
+                  <Text style={styles.rowTitle}>{item.name}</Text>
+                  <Text style={styles.rowMeta}>{item.category}</Text>
+                </View>
+                <Text style={styles.lowStockText}>{item.stock} pcs</Text>
               </View>
-              <Text style={styles.lowStockText}>{item.stock} pcs</Text>
-            </View>
-          ))
-        )}
-      </SurfaceCard>
+            ))
+          )}
+        </SurfaceCard>
 
-      <SurfaceCard>
-        <Text style={styles.sectionTitle}>Transaksi terbaru</Text>
-        {(summary?.recent_transactions ?? []).length === 0 ? (
-          <Text style={styles.emptyText}>Belum ada transaksi. Mulai dari menu kasir.</Text>
-        ) : (
-          summary?.recent_transactions.map((transaction) => (
-            <View key={transaction.id} style={styles.rowBetween}>
-              <View style={styles.flexOne}>
-                <Text style={styles.rowTitle}>{transaction.invoice_number}</Text>
-                <Text style={styles.rowMeta}>{transaction.customer_name || "Pelanggan umum"}</Text>
+        <SurfaceCard style={[styles.detailCard, isDesktop && styles.detailCardDesktop]}>
+          <Text style={styles.sectionTitle}>Transaksi terbaru</Text>
+          {(summary?.recent_transactions ?? []).length === 0 ? (
+            <Text style={styles.emptyText}>Belum ada transaksi. Mulai dari menu kasir.</Text>
+          ) : (
+            summary?.recent_transactions.map((transaction) => (
+              <View key={transaction.id} style={styles.rowBetween}>
+                <View style={styles.flexOne}>
+                  <Text style={styles.rowTitle}>{transaction.invoice_number}</Text>
+                  <Text style={styles.rowMeta}>{transaction.customer_name || "Pelanggan umum"}</Text>
+                </View>
+                <Text style={styles.revenueText}>{formatCurrency(transaction.total)}</Text>
               </View>
-              <Text style={styles.revenueText}>{formatCurrency(transaction.total)}</Text>
-            </View>
-          ))
-        )}
-      </SurfaceCard>
+            ))
+          )}
+        </SurfaceCard>
+      </View>
     </ScreenShell>
   );
 }
@@ -110,6 +115,19 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: "47%",
+  },
+  detailGrid: {
+    gap: spacing.lg,
+  },
+  detailGridDesktop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  detailCard: {
+    width: "100%",
+  },
+  detailCardDesktop: {
+    width: "48.5%",
   },
   statLabel: {
     color: colors.textMuted,

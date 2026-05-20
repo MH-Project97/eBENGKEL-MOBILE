@@ -269,7 +269,7 @@ export default function InventoryScreen() {
   };
 
   return (
-    <ScreenShell title="" subtitle="" hideHeader scrollable={false} contentStyle={styles.screenContent}>
+    <ScreenShell title="" subtitle="" hideHeader scrollable={false} contentStyle={styles.screenContent} contentMaxWidth={1180}>
       <SurfaceCard style={styles.controlsCard}>
         <View style={styles.searchRow}>
           <TextInput

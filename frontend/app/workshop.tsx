@@ -137,7 +137,7 @@ export default function WorkshopScreen() {
   };
 
   return (
-    <ScreenShell title="Detail Bengkel" subtitle="Kelola profil bengkel, ID unik, cabang aktif, dan persetujuan karyawan." backButton>
+    <ScreenShell title="Detail Bengkel" subtitle="Kelola profil bengkel, ID unik, cabang aktif, dan persetujuan karyawan." backButton contentMaxWidth={860}>
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Ringkasan bengkel aktif</Text>
         <Text style={styles.bigTitle} testID="workshop-current-name">{session?.user.workshop_name}</Text>

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { ScreenShell } from "../../components/ScreenShell";
 import { SurfaceCard } from "../../components/SurfaceCard";
@@ -27,11 +27,13 @@ const menuSections = [
 
 export default function MenuScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1080;
 
   const toMenuTestID = (label: string) => `menu-item-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
-    <ScreenShell title="" subtitle="" hideHeader>
+    <ScreenShell title="" subtitle="" hideHeader contentMaxWidth={980}>
       {menuSections.map((section) => (
         <SurfaceCard key={section.title}>
           <Text style={styles.sectionTitle} testID={`menu-section-${section.title.toLowerCase()}`}>
@@ -43,7 +45,7 @@ export default function MenuScreen() {
                 key={item.label}
                 onPress={() => router.push(item.route)}
                 testID={toMenuTestID(item.label)}
-                style={({ pressed }) => [styles.gridItem, pressed && styles.menuItemPressed]}
+                style={({ pressed }) => [styles.gridItem, isDesktop && styles.gridItemDesktop, pressed && styles.menuItemPressed]}
               >
                 <View style={styles.iconWrap}>
                   <Ionicons name={item.icon} size={28} color={colors.text} />
@@ -84,6 +86,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.md,
+  },
+  gridItemDesktop: {
+    width: "31.5%",
   },
   iconWrap: {
     width: 56,

@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -40,6 +41,8 @@ const customerModes: { label: string; value: CustomerMode }[] = [
 export default function CashierScreen() {
   const { session } = useAuth();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1180;
   const params = useLocalSearchParams<{ editId?: string | string[] }>();
   const editIdParam = Array.isArray(params.editId) ? params.editId[0] : params.editId;
   const isEditMode = Boolean(editIdParam);
@@ -482,7 +485,7 @@ export default function CashierScreen() {
 
   return (
     <>
-      <ScreenShell title="" subtitle="" hideHeader>
+      <ScreenShell title="" subtitle="" hideHeader contentMaxWidth={1320}>
         {isEditMode ? (
           <SurfaceCard>
             <Text style={styles.sectionTitle}>Mode edit transaksi</Text>
@@ -505,8 +508,10 @@ export default function CashierScreen() {
           </SurfaceCard>
         ) : null}
 
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Data transaksi</Text>
+        <View style={[styles.desktopGrid, isDesktop && styles.desktopGridDesktop]}>
+          <View style={[styles.desktopColumn, isDesktop && styles.desktopLeftColumn]}>
+            <SurfaceCard>
+              <Text style={styles.sectionTitle}>Data transaksi</Text>
 
           <Text style={styles.fieldLabel}>Mode pelanggan</Text>
           <View style={styles.segmentRow}>
@@ -555,24 +560,31 @@ export default function CashierScreen() {
               </Pressable>
             ))}
           </View>
-        </SurfaceCard>
+            </SurfaceCard>
 
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Transaksi</Text>
-          <View style={styles.transactionActionRow}>
-            <Pressable onPress={openItemModal} style={({ pressed }) => [styles.transactionButton, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
-              <Ionicons name="cart-outline" size={18} color={colors.primary} />
-              <Text style={styles.transactionButtonText}>Pilih barang/sparepart</Text>
-            </Pressable>
-            <Pressable onPress={() => setServiceModalVisible(true)} style={({ pressed }) => [styles.transactionButton, pressed && styles.segmentPressed]} testID="cashier-service-modal-open-button">
-              <Ionicons name="construct-outline" size={18} color={colors.primary} />
-              <Text style={styles.transactionButtonText}>Tambah jasa manual</Text>
-            </Pressable>
+            <SurfaceCard>
+              <Text style={styles.sectionTitle}>Transaksi</Text>
+              <View style={styles.transactionActionRow}>
+                <Pressable onPress={openItemModal} style={({ pressed }) => [styles.transactionButton, pressed && styles.segmentPressed]} testID="cashier-toggle-item-picker-button">
+                  <Ionicons name="cart-outline" size={18} color={colors.primary} />
+                  <Text style={styles.transactionButtonText}>Pilih barang/sparepart</Text>
+                </Pressable>
+                <Pressable onPress={() => setServiceModalVisible(true)} style={({ pressed }) => [styles.transactionButton, pressed && styles.segmentPressed]} testID="cashier-service-modal-open-button">
+                  <Ionicons name="construct-outline" size={18} color={colors.primary} />
+                  <Text style={styles.transactionButtonText}>Tambah jasa manual</Text>
+                </Pressable>
+              </View>
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <Text style={styles.sectionTitle}>Detail tambahan</Text>
+              <FormField label="Catatan" value={notes} onChangeText={setNotes} multiline testID="cashier-notes-input" />
+            </SurfaceCard>
           </View>
-        </SurfaceCard>
 
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Keranjang</Text>
+          <View style={[styles.desktopColumn, isDesktop && styles.desktopRightColumn]}>
+            <SurfaceCard>
+              <Text style={styles.sectionTitle}>Keranjang</Text>
           {cart.length === 0 ? (
             <Text style={styles.helperText}>Belum ada barang atau jasa di keranjang.</Text>
           ) : (
@@ -609,10 +621,10 @@ export default function CashierScreen() {
               );
             })
           )}
-        </SurfaceCard>
+            </SurfaceCard>
 
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Ringkasan transaksi</Text>
+            <SurfaceCard>
+              <Text style={styles.sectionTitle}>Ringkasan transaksi</Text>
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Total transaksi</Text>
@@ -642,24 +654,21 @@ export default function CashierScreen() {
             disabled={submitting || cart.length === 0 || loadingEditData}
             testID="cashier-submit-button"
           />
-        </SurfaceCard>
-        <SurfaceCard>
-          <Text style={styles.sectionTitle}>Detail tambahan</Text>
-          <FormField label="Catatan" value={notes} onChangeText={setNotes} multiline testID="cashier-notes-input" />
-        </SurfaceCard>
-
-        {receipt ? (
-          <SurfaceCard>
-            <Text style={styles.sectionTitle}>Bon terbaru</Text>
-            <Text style={styles.itemTitle}>{receipt.invoice_number}</Text>
-            <Text style={styles.helperText}>Mode {receipt.customer_mode} • Total {formatCurrency(receipt.total)}</Text>
-            <Text style={styles.helperText}>Dibayar {formatCurrency(receipt.amount_paid)} • {receipt.payment_state}</Text>
-            <View style={styles.segmentRow}>
-              <ActionButton label="Cetak bon" onPress={() => void shareReceipt()} variant="secondary" testID="cashier-share-receipt-button" />
-              {Platform.OS === "web" ? <ActionButton label="Unduh HTML" onPress={downloadReceipt} testID="cashier-download-receipt-button" /> : null}
-            </View>
-          </SurfaceCard>
-        ) : null}
+            </SurfaceCard>
+            {receipt ? (
+              <SurfaceCard>
+                <Text style={styles.sectionTitle}>Bon terbaru</Text>
+                <Text style={styles.itemTitle}>{receipt.invoice_number}</Text>
+                <Text style={styles.helperText}>Mode {receipt.customer_mode} • Total {formatCurrency(receipt.total)}</Text>
+                <Text style={styles.helperText}>Dibayar {formatCurrency(receipt.amount_paid)} • {receipt.payment_state}</Text>
+                <View style={styles.segmentRow}>
+                  <ActionButton label="Cetak bon" onPress={() => void shareReceipt()} variant="secondary" testID="cashier-share-receipt-button" />
+                  {Platform.OS === "web" ? <ActionButton label="Unduh HTML" onPress={downloadReceipt} testID="cashier-download-receipt-button" /> : null}
+                </View>
+              </SurfaceCard>
+            ) : null}
+          </View>
+        </View>
       </ScreenShell>
 
       <Modal visible={customerModalVisible} animationType="slide" transparent onRequestClose={() => setCustomerModalVisible(false)}>
@@ -1148,5 +1157,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 14,
     backgroundColor: colors.surfaceAlt,
+  },
+  desktopGrid: {
+    gap: spacing.lg,
+  },
+  desktopGridDesktop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  desktopColumn: {
+    gap: spacing.lg,
+  },
+  desktopLeftColumn: {
+    width: "63%",
+  },
+  desktopRightColumn: {
+    width: "35%",
   },
 });

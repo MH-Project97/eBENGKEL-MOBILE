@@ -193,6 +193,17 @@ Pengguna meminta aplikasi manajemen bengkel mobile dengan fitur utama:
   - self-test backend lulus untuk: register owner baru, auto-create akun mekanik, reset password mekanik, dan login akun mekanik hasil reset
   - screenshot lokal lulus untuk Login compact, Register compact tanpa teks tambahan, dan kontrol password karyawan di halaman Detail Pengguna
 
+### 2026-05-20 (responsif web)
+- Perapian responsive layout untuk akses APK Android + web/PC:
+  - ScreenShell dibuat punya container max-width terpusat agar konten/card tidak melebar mengikuti layar desktop
+  - halaman Dashboard dirapikan jadi layout 2 kolom pada layar lebar untuk kartu ringkasan dan kartu informasi
+  - halaman Kasir dibuat lebih desktop-friendly dengan dua kolom utama: area input/transaksi dan area keranjang/ringkasan
+  - halaman Menu dibuat lebih rapi di desktop dengan grid 3 kolom yang tetap terpusat
+  - halaman Detail Pengguna, Detail Bengkel, Barang, dan Transaksi diberi batas lebar konten agar tetap nyaman dibaca di web
+  - halaman Login/Register dipusatkan dengan lebar kartu tetap agar tidak melebar di monitor
+- Verifikasi tambahan:
+  - screenshot lokal desktop lulus untuk Login, Register, Dashboard, Kasir, Menu, dan Detail Pengguna dengan layout web yang lebih rapi
+
 ## Backlog Prioritas
 
 ### P0

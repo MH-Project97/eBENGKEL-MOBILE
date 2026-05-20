@@ -102,6 +102,9 @@ const styles = StyleSheet.create({
     minHeight: "100%",
   },
   card: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
     gap: spacing.md,
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,

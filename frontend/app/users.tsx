@@ -118,7 +118,7 @@ export default function UsersScreen() {
   };
 
   return (
-    <ScreenShell title="Detail Pengguna" subtitle="Daftar anggota aktif untuk bengkel yang sedang dipakai. Persetujuan user baru ada di halaman bengkel." backButton>
+    <ScreenShell title="Detail Pengguna" subtitle="Daftar anggota aktif untuk bengkel yang sedang dipakai. Persetujuan user baru ada di halaman bengkel." backButton contentMaxWidth={860}>
       <SurfaceCard>
         <Text style={styles.sectionTitle}>Ringkasan akses</Text>
         <Text style={styles.helperText}>Akun Anda: {session?.user.full_name} • {roleLabels[session?.user.role ?? "kasir"]}</Text>
