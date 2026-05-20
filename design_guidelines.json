@@ -1,83 +1,85 @@
 {
+  "project_name": "Workshop Management App (Bengkel)",
   "theme": "Light",
-  "archetype": "Archetype 4: Swiss & High-Contrast (Adapted for Modern Minimal POS)",
+  "archetype": "Swiss & High-Contrast (Industrial Utility)",
+  "design_philosophy": "Functional clarity meets industrial robustness. The interface must prioritize fast transaction entries and readable inventory data, ensuring it looks tailored on both small mobile screens and wide desktop monitors without structural stretching.",
   "colors": {
-    "primary": "#0F172A",
-    "secondary": "#F8FAFC",
-    "accent": "#2563EB",
-    "success": "#10B981",
-    "destructive": "#EF4444",
+    "background": "#F5F5F5",
     "surface": "#FFFFFF",
-    "border": "#E2E8F0",
-    "text_main": "#0F172A",
-    "text_muted": "#64748B"
+    "surface_secondary": "#FAFAFA",
+    "primary": "#FF5722",
+    "primary_hover": "#E64A19",
+    "text_main": "#111827",
+    "text_muted": "#6B7280",
+    "border": "#E5E7EB",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
   },
   "typography": {
     "heading_font": "Outfit",
-    "body_font": "Figtree",
-    "hierarchy": {
-      "h1": "text-3xl font-semibold tracking-tight",
-      "h2": "text-2xl font-semibold tracking-tight",
-      "h3": "text-xl font-medium",
-      "body": "text-base font-normal text-slate-600",
-      "small": "text-sm text-slate-500"
+    "body_font": "Manrope",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight font-black",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-bold",
+      "h3": "text-xl sm:text-2xl font-bold",
+      "body": "text-base",
+      "caption": "text-sm uppercase tracking-[0.1em]"
     }
   },
-  "layout": {
-    "spacing": "Generous spacing. Screen padding p-4 or p-6. Container gap-4 to gap-6.",
-    "border_radius": "rounded-2xl for main cards, rounded-xl for buttons and inputs.",
-    "shadows": "Minimalist. shadow-sm for cards, shadow-md for sticky header or floating elements.",
-    "grid": "Mobile-first bento grid. grid-cols-2 gap-4. Primary action (Kasir) col-span-2."
+  "layout_patterns": {
+    "page_container": {
+      "mobile": "flex: 1, width: '100%', padding: 16",
+      "desktop": "flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center', padding: 24",
+      "implementation": "Use a global Container component that checks useWindowDimensions().width to apply maxWidth and centered alignment on web."
+    },
+    "responsive_columns": {
+      "mobile": "flexDirection: 'column', width: '100%'",
+      "desktop": "flexDirection: 'row', flexWrap: 'wrap', gap: 24",
+      "implementation": "For desktop, utilize flex basis (e.g., width: '48%') or CSS Grid if using NativeWind/Web. Avoid setting fixed heights."
+    },
+    "card_stretching_prevention": {
+      "strategy": "On web, restrict card widths by applying a maximum width or grouping them in a multi-column flex layout instead of allowing flex: 1 to fill the entire row infinitely."
+    }
+  },
+  "screen_blueprints": {
+    "auth": {
+      "layout": "Centered screen, full height.",
+      "card_sizing": "maxWidth: 400, width: '100%', padding: 32, borderRadius: 16, backgroundColor: '#FFFFFF', shadow.",
+      "mobile": "Takes up full width minus margins.",
+      "desktop": "Perfectly centered in the middle of the screen."
+    },
+    "dashboard_summary": {
+      "layout": "Grid-like metric cards.",
+      "mobile": "1 column vertical list of metric cards.",
+      "desktop": "3 or 4 column layout (flexDirection: 'row', flexWrap: 'wrap'). Each card width approx 30% or 23%."
+    },
+    "cashier_pos": {
+      "layout": "Two-pane layout for desktop, collapsible or stacked for mobile.",
+      "mobile": "1 column: Product grid takes full space. A floating action button (FAB) or bottom sheet displays the current Cart summary.",
+      "desktop": "2 columns: Left pane (70% width) for Product Grid/Search, Right pane (30% width, sticky or fixed) for Cart/Order Summary and Checkout button."
+    },
+    "inventory_transactions": {
+      "layout": "List view with constrained max-width.",
+      "mobile": "Full width list items.",
+      "desktop": "Container maxWidth: 800 or 1000. Do not let list items stretch to 1920px. Use a multi-column grid for inventory items if they are cards, or a stylized table/list layout for transactions."
+    },
+    "details_screens": {
+      "layout": "Workshop Details, User Details, Settings, About",
+      "mobile": "Vertical stacking of form fields and info cards.",
+      "desktop": "MaxWidth: 600 - 800. Group related form fields into side-by-side columns (2 columns for form inputs)."
+    },
+    "toolbar_wrapping": {
+      "strategy": "Action bars (Search, Filter, Add New) should use flexDirection: 'row', flexWrap: 'wrap' to gracefully wrap onto the next line if screen width shrinks, instead of squishing elements."
+    }
   },
   "components": {
-    "buttons": "Shadcn standard. h-12 for better mobile touch targets. font-medium.",
-    "inputs": "Shadcn input, h-12. rounded-xl. focus:ring-2 focus:ring-slate-900.",
-    "cards": "Flat design, border border-slate-200, bg-white, no heavy shadows.",
-    "header": "Sticky top, backdrop-blur-md bg-white/80, z-50, border-b border-slate-200."
+    "Card": "Solid background, subtle border (1px solid #E5E7EB), no heavy shadows. Rounded corners (8px).",
+    "Button": "Industrial bold. Primary CTA uses the primary color (#FF5722) with white text. Hover state on web should darken.",
+    "Input": "Large touch targets for mobile (min-height: 48px). Clear borders, focus states must have high contrast (2px solid #111827)."
   },
-  "screens": {
-    "login_register": {
-      "description": "Minimalist form. No ad images. Tabs for Login vs Register. Register has toggle for Owner vs Employee (Join via 18-char ID).",
-      "elements": ["Logo (Lucide Wrench or Hexagon)", "Tabs", "Form Fields", "Submit Button"]
-    },
-    "dashboard": {
-      "header": "Displays Workshop Name (H2), User Name (body), Role (small badge).",
-      "menu_grid": "Grid with main actions. Kasir (col-span-2), Transaksi, Barang, Bengkel, Pengguna.",
-      "system_section": "Placed at the bottom of the dashboard menu list. Contains Settings and Logout (destructive)."
-    },
-    "cashier": {
-      "description": "Fast POS entry. Search/Scan item, quick quantity adjust, total calculation, checkout button."
-    },
-    "inventory": {
-      "description": "List of items with stock. Add/Edit/Delete actions."
-    },
-    "workshop_details": {
-      "description": "Info about workshop. Crucially: Section for Admin to approve or remove employee access."
-    }
+  "testing": {
+    "data_testid_rules": "All interactive elements, forms, and key text fields MUST include a data-testid attribute (e.g., data-testid='cashier-checkout-button', data-testid='inventory-search-input')."
   },
-  "media": {
-    "image_urls": [
-      {
-        "url": "https://images.unsplash.com/photo-1772423428101-6ab2811e0c2c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxtaW5pbWFsaXN0JTIwZ2VvbWV0cmljJTIwbG9nbyUyMGJsYWNrJTIwYW5kJTIwd2hpdGV8ZW58MHx8fHwxNzc2ODYzNjM5fDA&ixlib=rb-4.1.0&q=85",
-        "description": "Minimalist abstract lines. Use strictly as a subtle watermark or auth background if completely necessary, otherwise rely on empty space. Keep opacity very low (e.g. 5%).",
-        "category": "abstract_watermark"
-      }
-    ]
-  },
-  "accessibility_and_testing": {
-    "data_testid": "MANDATORY for all interactive elements (e.g., login-submit-button, menu-kasir-button).",
-    "touch_targets": "Minimum 44x44px for mobile interaction (h-12 in Tailwind)."
-  },
-  "instructions_to_main_agent": [
-    "Delete all old ad-like images from Login and Dashboard.",
-    "Implement multi-tenant logic (Workshop ID separation).",
-    "When owner registers, collect 'Nama Bengkel'.",
-    "When employee registers, collect 18-character alphanumeric 'Workshop ID' to join.",
-    "Admin/Owner must approve employees in the 'Detail Bengkel' page before they can access the full system.",
-    "Header must strictly show Workshop Name (prominent), and User Name + Role below it.",
-    "Move Logout button to a 'Sistem' section at the bottom of the dashboard menu.",
-    "Ensure UI is mobile-first, using Tailwind and Shadcn components customized with rounded-2xl and h-12 inputs/buttons for touch.",
-    "Do NOT use 'Inter'. Use 'Outfit' for headings and 'Figtree' for body.",
-    "Keep it extremely clean: white backgrounds, slate borders, slate-900 text. No unnecessary gradients or heavy shadows."
-  ]
+  "instructions_to_main_agent": "Implement these responsive patterns using Expo React Native. Create a responsive wrapper or hook (e.g., useWindowDimensions) to toggle between mobile (width < 768) and desktop layouts. Ensure NativeWind or StyleSheet properties apply maxWidth to prevent web components from unbounded horizontal stretching. For Cashier, build a split-screen view on desktop. Do not use placehold.it or similar; rely on generic icons or local static assets."
 }
